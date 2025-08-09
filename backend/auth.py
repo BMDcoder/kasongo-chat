@@ -7,6 +7,8 @@ from models import User
 from database import get_session
 from config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
 
+router = APIRouter(tags=["auth"])
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def verify_password(plain, hashed):
