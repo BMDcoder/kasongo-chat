@@ -5,23 +5,25 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: Postgres
+      POSTGRES_DB: postgres  # lowercase consistent with typical usage
     volumes:
       - pgdata:/var/lib/postgresql/data
+
   backend:
     build: ./backend
     env_file:
       - ./backend/.env
     ports:
-      - "8080:8080"
+      - "8000:8000"     # Match the port your backend listens on (usually 8000)
     depends_on:
       - db
+
   frontend:
     build: ./frontend
     ports:
-      - "8080:8080"
+      - "3000:3000"      # Typical frontend port
     environment:
-      - VITE_BACKEND_URL=https://kasongo-chat-production.up.railway.app
+      - VITE_BACKEND_URL=http://backend:8000   # Use internal Docker network for local dev
     depends_on:
       - backend
 
