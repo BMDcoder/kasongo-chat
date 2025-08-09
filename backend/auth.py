@@ -3,9 +3,9 @@ from jose import jwt, JWTError
 from datetime import datetime, timedelta
 from fastapi import HTTPException, Header
 from sqlmodel import select, Session
-from .models import User
-from .database import get_session
-from .config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
+from models import User
+from database import get_session
+from config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
