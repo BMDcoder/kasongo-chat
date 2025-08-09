@@ -5,7 +5,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: kasongo
+      POSTGRES_DB: Postgres
     volumes:
       - pgdata:/var/lib/postgresql/data
   backend:
