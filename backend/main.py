@@ -8,19 +8,11 @@ from models import User
 from auth import router as auth_router
 from routes.admin_agents import router as agent_router
 from routes.chat import router as chat_router
+from contextlib import asynccontextmanager
 
-app = FastAPI(title="Kasongo - AI Agent Backend")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # restrict in production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-@app.on_event("startup")
-def on_startup():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup code
     create_db_and_tables()
     with Session(engine) as session:
         admin = session.exec(select(User).where(User.username == "admin")).first()
@@ -28,6 +20,20 @@ def on_startup():
             admin = User(username="admin", password_hash=get_password_hash("adminpass"), is_admin=True)
             session.add(admin)
             session.commit()
+    
+    yield  # application runs here
+    
+    # (optional) shutdown code can go here
+
+app = FastAPI(title="Kasongo - AI Agent Backend", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://kasongo-chat.vercel.app"],  # restrict in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(auth_router)
 app.include_router(agent_router)
