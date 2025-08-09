@@ -1,10 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.database import create_db_and_tables, engine
-from .routes import admin_agents, auth, chat
-from .auth import get_password_hash
+from database import create_db_and_tables, engine
+from routes import admin_agents, auth, chat
+from auth import get_password_hash
 from sqlmodel import Session, select
-from .models import User
+from models import User
 
 app = FastAPI(title="Kasongo - AI Agent Backend")
 
