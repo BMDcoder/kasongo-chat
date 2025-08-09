@@ -5,6 +5,7 @@ from routes import admin_agents, auth, chat
 from auth import get_password_hash
 from sqlmodel import Session, select
 from models import User
+from auth import router as auth_router
 
 app = FastAPI(title="Kasongo - AI Agent Backend")
 
