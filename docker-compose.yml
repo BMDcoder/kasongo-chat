@@ -21,7 +21,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - VITE_BACKEND_URL=http://localhost:8000
+      - VITE_BACKEND_URL=kasongo-chat-production.up.railway.app
     depends_on:
       - backend
 
