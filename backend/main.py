@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Header
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Field, SQLModel, create_engine, Session, select
 from typing import Optional, List
@@ -8,15 +8,16 @@ from jose import jwt, JWTError
 from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
+import httpx
 
 load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./kasongo.db")
 SECRET_KEY = os.getenv("SECRET_KEY", "devsecret")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
+OPENAI_KEY = os.getenv("OPENAI_API_KEY", "")
 
 engine = create_engine(DATABASE_URL, echo=False)
-
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 app = FastAPI(title="Kasongo - AI Agent Backend")
@@ -55,6 +56,7 @@ class Message(SQLModel, table=True):
     content: str
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
+# Create all tables
 SQLModel.metadata.create_all(engine)
 
 # --- Auth utilities ---
@@ -74,8 +76,30 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta]=None):
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 def get_current_admin(token: str = Depends(lambda: None)):
-    # This dependency will be used via OAuth2 in real flows; here we keep simple.
     raise HTTPException(status_code=501, detail="Use explicit endpoints for login and admin actions.")
+
+def get_user_by_token(token: str = ""):
+    if token.startswith("Bearer "):
+        token = token.split(" ",1)[1]
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username = payload.get("sub")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    with Session(engine) as session:
+        user = session.exec(select(User).where(User.username == username)).first()
+        if not user:
+            raise HTTPException(status_code=401, detail="Invalid user")
+        return user
+
+# Dependency for admin protected routes
+def admin_required(authorization: Optional[str] = Header(None)):
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Missing authorization header")
+    user = get_user_by_token(authorization)
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="Not admin")
+    return user
 
 # --- Schemas ---
 class Token(BaseModel):
@@ -115,30 +139,6 @@ def admin_login(payload: LoginIn):
             raise HTTPException(status_code=401, detail="Invalid credentials")
         token = create_access_token({"sub": user.username})
         return {"access_token": token}
-
-def get_user_by_token(token: str = ""):
-    if token.startswith("Bearer "):
-        token = token.split(" ",1)[1]
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username = payload.get("sub")
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
-    with Session(engine) as session:
-        user = session.exec(select(User).where(User.username == username)).first()
-        if not user:
-            raise HTTPException(status_code=401, detail="Invalid user")
-        return user
-
-# Dependency for admin protected routes
-from fastapi import Header
-def admin_required(authorization: Optional[str] = Header(None)):
-    if not authorization:
-        raise HTTPException(status_code=401, detail="Missing authorization header")
-    user = get_user_by_token(authorization)
-    if not user.is_admin:
-        raise HTTPException(status_code=403, detail="Not admin")
-    return user
 
 # --- Agent management ---
 @app.post("/admin/agents", response_model=dict)
@@ -180,13 +180,10 @@ def delete_agent(agent_id: int, admin=Depends(admin_required)):
         return {"ok": True}
 
 # --- Chat endpoint ---
-import httpx
-OPENAI_KEY = os.getenv("OPENAI_API_KEY", "")
-
 @app.post("/chat")
 def chat_endpoint(payload: ChatIn):
-    # find or create user
     with Session(engine) as session:
+        # find or create user
         user = session.exec(select(User).where(User.username == payload.username)).first()
         if not user:
             user = User(username=payload.username, password_hash=get_password_hash("temppw"))
