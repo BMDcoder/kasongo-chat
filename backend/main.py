@@ -27,6 +27,6 @@ def on_startup():
             session.add(admin)
             session.commit()
 
-app.include_router(auth.router)
+app.include_router(auth_router)
 app.include_router(admin_agents.router)
 app.include_router(chat.router)
