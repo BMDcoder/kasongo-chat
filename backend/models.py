@@ -1,0 +1,1 @@
+# models are defined inline in main.py using SQLModel for brevity.
