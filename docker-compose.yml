@@ -13,7 +13,7 @@ services:
     env_file:
       - ./backend/.env
     ports:
-      - "3000:3000"
+      - "8000:8000"
     depends_on:
       - db
   frontend:
@@ -21,7 +21,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - VITE_BACKEND_URL=kasongo-chat-production.up.railway.app
+      - VITE_BACKEND_URL=https://kasongo-chat-production.up.railway.app
     depends_on:
       - backend
 
