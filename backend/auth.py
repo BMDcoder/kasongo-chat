@@ -1,7 +1,7 @@
 from passlib.context import CryptContext
 from jose import jwt, JWTError
 from datetime import datetime, timedelta
-from fastapi import HTTPException, Header
+from fastapi import APIRouter, HTTPException, Header
 from sqlmodel import select, Session
 from models import User
 from database import get_session
