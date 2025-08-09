@@ -29,7 +29,7 @@ app = FastAPI(title="Kasongo - AI Agent Backend", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://kasongo-chat.vercel.app"],  # restrict in production
+    allow_origins=["*"],  # restrict in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
