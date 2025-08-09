@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .database import create_db_and_tables, engine
+from app.database import create_db_and_tables, engine
 from .routes import admin_agents, auth, chat
 from .auth import get_password_hash
 from sqlmodel import Session, select
