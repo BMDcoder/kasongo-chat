@@ -130,7 +130,7 @@ const styles = {
     borderRadius: 12,
     boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
     width: "80%",
-    maxWidth: none,
+    maxWidth: 600px,
     display: "flex",
     flexDirection: "column",
     height: "80vh",
