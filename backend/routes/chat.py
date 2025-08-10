@@ -9,7 +9,7 @@ import httpx
 
 router = APIRouter(tags=["chat"])
 
-HF_MODEL = "openai/gpt-oss-20b:hyperbolic"  # Replace with your actual Hugging Face model
+HF_MODEL = "deepseek-ai/DeepSeek-V3-0324"  # Replace with your actual Hugging Face model
 
 @router.post("/chat")
 def chat_endpoint(payload: ChatIn, session: Session = Depends(get_session)):
@@ -39,7 +39,7 @@ def chat_endpoint(payload: ChatIn, session: Session = Depends(get_session)):
         json_data = {"inputs": payload.message}
         try:
             r = httpx.post(
-                f"https://huggingface.co/{HF_MODEL}",
+                f"https://router.huggingface.co/v1/chat/completions/{HF_MODEL}",
                 headers=headers,
                 json=json_data,
                 timeout=30.0,
