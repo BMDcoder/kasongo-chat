@@ -3,9 +3,10 @@ import React, { useState, useEffect, useRef } from "react";
 const logoUrl = "https://i.postimg.cc/8ktYQrWd/kasongo.png";
 const bgImageUrl = "https://i.postimg.cc/8z2KB2fs/kasongobg-03.png?auto=format&fit=crop&w=1470&q=80";
 
-const chatLogRef = useRef(null);
 
 function Chat({ backendUrl }) {
+
+  const chatLogRef = useRef(null);
   const [agentId] = useState(1);
   const [username] = useState("guest");
   const [input, setInput] = useState("");
