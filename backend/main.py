@@ -5,7 +5,7 @@ from routes import admin_agents, auth, chat
 from auth import get_password_hash
 from sqlmodel import Session, select
 from models import User
-from auth import router as auth_router
+from routes.auth import router as auth_router
 from routes.admin_agents import router as agent_router
 from routes.chat import router as chat_router
 from contextlib import asynccontextmanager
