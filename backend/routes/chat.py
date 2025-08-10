@@ -4,7 +4,7 @@ from models import User, Agent, Chat, Message
 from schemas import ChatIn
 from database import get_session
 from auth import get_password_hash
-from config import COHERE_API_KEY  # Add your Cohere API key here
+from config import COHERE_API_KEY  # Your Cohere API key here
 import httpx
 
 router = APIRouter(tags=["chat"])
@@ -42,9 +42,11 @@ def chat_endpoint(payload: ChatIn, session: Session = Depends(get_session)):
             "Authorization": f"Bearer {COHERE_API_KEY}",
             "Content-Type": "application/json",
         }
+        # Construct prompt combining system prompt and user message
         prompt = f"{agent.system_prompt}\nUser: {payload.message}\nAssistant:"
+
         body = {
-            "model": "command-xlarge-nightly",  # Or any other available Cohere model
+            "model": "command-xlarge-nightly",  # Use your chosen model here
             "prompt": prompt,
             "max_tokens": 300,
             "temperature": 0.7,
@@ -54,6 +56,7 @@ def chat_endpoint(payload: ChatIn, session: Session = Depends(get_session)):
             "presence_penalty": 0,
             "stop_sequences": ["User:", "Assistant:"],
         }
+
         try:
             response = httpx.post(
                 COHERE_API_URL,
