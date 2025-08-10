@@ -187,7 +187,7 @@ const styles = {
   textarea: {
     flex: 1,
     resize: "none",
-    padding: 15,
+    padding: 20,
     borderRadius: 40,
     border: "1px solid #ccc",
     fontSize: 16,
