@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 
-const logoUrl = "https://i.postimg.cc/8ktYQrWd/Asset-1.png"; // <-- Replace with your actual logo URL
-const bgImageUrl = "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1470&q=80"; // example background image
+const logoUrl = "https://i.postimg.cc/8ktYQrWd/kasongo.png"; // <-- Replace with your actual logo URL
+const bgImageUrl = "https://i.postimg.cc/8z2KB2fs/kasongobg-03.png"; // example background image
 
 function Chat({ backendUrl }) {
   const [agentId] = useState(1); // fixed to 1 since no UI to change
@@ -39,7 +39,7 @@ function Chat({ backendUrl }) {
   return (
     <div style={styles.chatContainer}>
       <div style={styles.chatLog}>
-        {log.length === 0 && <div style={styles.placeholder}>Say hi to your AI agent!</div>}
+        {log.length === 0 && <div style={styles.placeholder}>Hey, Let's talk business!</div>}
         {log.map((m, i) => (
           <div
             key={i}
@@ -48,7 +48,7 @@ function Chat({ backendUrl }) {
               ...(m.role === "user" ? styles.userMsg : m.role === "agent" ? styles.agentMsg : styles.errorMsg),
             }}
           >
-            <strong>{m.role === "user" ? "You" : m.role === "agent" ? "Agent" : "Error"}:</strong> {m.content}
+           {m.content}
           </div>
         ))}
       </div>
@@ -62,7 +62,7 @@ function Chat({ backendUrl }) {
           rows={2}
         />
         <button onClick={send} style={styles.sendButton}>
-          Send
+          Ask
         </button>
       </div>
     </div>
@@ -113,7 +113,7 @@ const styles = {
     boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
   },
   logo: {
-    height: 60,
+    height: 50,
     objectFit: "contain",
   },
   main: {
@@ -129,8 +129,8 @@ const styles = {
     backgroundColor: "rgba(255,255,255,0.85)",
     borderRadius: 12,
     boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
-    width: "100%",
-    maxWidth: 600,
+    width: "80%",
+    maxWidth: none,
     display: "flex",
     flexDirection: "column",
     height: "80vh",
@@ -185,7 +185,7 @@ const styles = {
     fontFamily: "inherit",
   },
   sendButton: {
-    backgroundColor: "#007bff",
+    backgroundColor: "#000000",
     border: "none",
     color: "white",
     padding: "10px 18px",
