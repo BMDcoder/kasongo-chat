@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Railway sets DATABASE_URL as environment variable like this:
-DATABASE_URL = os.getenv("DATABASE_URL", os.getenv("POSTGRES_DATABASE_URL"))
+DATABASE_URL = os.getenv("DATABASE_URL", os.getenv("DATABASE_URL"))
 
 SECRET_KEY = os.getenv("SECRET_KEY", "devsecret")
 ALGORITHM = "HS256"
