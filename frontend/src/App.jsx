@@ -60,12 +60,12 @@ function Chat({ backendUrl }) {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder="Type your message..."
+          placeholder="How can I help you today..."
           style={styles.textarea}
           rows={2}
         />
         <button onClick={send} style={styles.sendButton}>
-          Ask
+          Send
         </button>
       </div>
     </div>
