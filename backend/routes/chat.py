@@ -9,11 +9,15 @@ import cohere
 
 router = APIRouter(tags=["chat"])
 
-co = cohere.ClientV2(COHERE_API_KEY)  # Initialize once
+# Initialize Cohere client once
+co = cohere.ClientV2(COHERE_API_KEY) if COHERE_API_KEY else None
+
 
 @router.post("/chat")
 def chat_endpoint(payload: ChatIn, session: Session = Depends(get_session)):
-    # Find or create user
+    """Handles chat requests between user and AI agent."""
+
+    # 1️⃣ Find or create user
     user = session.exec(select(User).where(User.username == payload.username)).first()
     if not user:
         user = User(username=payload.username, password_hash=get_password_hash("temppw"))
@@ -21,42 +25,46 @@ def chat_endpoint(payload: ChatIn, session: Session = Depends(get_session)):
         session.commit()
         session.refresh(user)
 
-    # Find agent
+    # 2️⃣ Find agent
     agent = session.get(Agent, payload.agent_id)
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
 
-    # Create chat record
+    # 3️⃣ Create chat record
     chat = Chat(user_id=user.id, agent_id=agent.id)
     session.add(chat)
     session.commit()
     session.refresh(chat)
 
-    # Save user message
+    # 4️⃣ Save user message
     msg = Message(chat_id=chat.id, role="user", content=payload.message)
     session.add(msg)
     session.commit()
 
-    if COHERE_API_KEY:
+    # 5️⃣ Get AI response
+    if COHERE_API_KEY and co:
         try:
             response = co.chat(
-                model="command-a-03-2025",  # or agent-specific model if you want
+                model="command-a-03-2025",
                 messages=[
                     {"role": "system", "content": agent.system_prompt or "You are a helpful assistant."},
                     {"role": "user", "content": payload.message}
                 ],
             )
-            if response.message.content and len(response.message.content) > 0:
+
+            # Extract plain text from response
+            if hasattr(response, "message") and response.message.content:
                 ai_text = response.message.content[0].text
-        else:
-            ai_text = str(response.message)
-    except Exception as e:
-        ai_text = f"(Cohere API call failed) {str(e)}"
-else:
-    ai_text = "Cohere API key not configured; running in mock mode. Echo: " + payload.message
+            else:
+                ai_text = str(response)
 
+        except Exception as e:
+            ai_text = f"(Cohere API call failed) {str(e)}"
 
-    # Save AI response
+    else:
+        ai_text = f"Cohere API key not configured; running in mock mode. Echo: {payload.message}"
+
+    # 6️⃣ Save AI response
     ai_msg = Message(chat_id=chat.id, role="agent", content=ai_text)
     session.add(ai_msg)
     session.commit()
