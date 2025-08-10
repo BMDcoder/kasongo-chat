@@ -48,7 +48,7 @@ function Chat({ backendUrl }) {
               ...(m.role === "user" ? styles.userMsg : m.role === "agent" ? styles.agentMsg : styles.errorMsg),
             }}
           >
-           {m.content}
+           <strong>{m.role === "user" ? "You" : m.role === "agent" ? "Agent" : "Error"}:</strong> {m.content}
           </div>
         ))}
       </div>
