@@ -5,7 +5,7 @@ from schemas import ChatIn
 from database import get_session
 from auth import get_password_hash
 from config import COHERE_API_KEY
-import cohere
+from cohere import ClientV2
 
 router = APIRouter(tags=["chat"])
 
@@ -46,7 +46,7 @@ def chat_endpoint(payload: ChatIn, session: Session = Depends(get_session)):
                     {"role": "user", "content": payload.message}
                 ],
             )
-            ai_text = response.generations[0].text.strip()
+            ai_text = response.message
         except Exception as e:
             ai_text = f"(Cohere API call failed) {str(e)}"
     else:
