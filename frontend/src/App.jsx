@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 
-const logoUrl = "https://i.postimg.cc/8ktYQrWd/kasongo.png"; // <-- Replace with your actual logo URL
-const bgImageUrl = "https://i.postimg.cc/8z2KB2fs/kasongobg-03.png?auto=format&fit=crop&w=1470&q=80"; // example background image
+const logoUrl = "https://i.postimg.cc/8ktYQrWd/kasongo.png";
+const bgImageUrl = "https://i.postimg.cc/8z2KB2fs/kasongobg-03.png?auto=format&fit=crop&w=1470&q=80";
 
 function Chat({ backendUrl }) {
-  const [agentId] = useState(1); // fixed to 1 since no UI to change
-  const [username] = useState("guest"); // fixed to guest, no UI input
+  const [agentId] = useState(1);
+  const [username] = useState("guest");
   const [input, setInput] = useState("");
   const [log, setLog] = useState([]);
 
@@ -28,7 +28,6 @@ function Chat({ backendUrl }) {
     }
   };
 
-  // Send on Enter key press
   const onKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -45,10 +44,14 @@ function Chat({ backendUrl }) {
             key={i}
             style={{
               ...styles.message,
-              ...(m.role === "user" ? styles.userMsg : m.role === "agent" ? styles.agentMsg : styles.errorMsg),
+              ...(m.role === "user"
+                ? { ...styles.userMsg, alignSelf: "flex-end" }
+                : m.role === "agent"
+                ? { ...styles.agentMsg, alignSelf: "flex-start" }
+                : { ...styles.errorMsg, alignSelf: "center" }),
             }}
           >
-            <strong>{m.role === "user" ? "You" : m.role === "agent" ? "Agent" : "Error"}:</strong> {m.content}
+            {m.content}
           </div>
         ))}
       </div>
@@ -62,7 +65,7 @@ function Chat({ backendUrl }) {
           rows={2}
         />
         <button onClick={send} style={styles.sendButton}>
-          Send
+          Ask
         </button>
       </div>
     </div>
@@ -76,7 +79,7 @@ export default function App() {
     <div style={{ ...styles.appContainer, backgroundImage: `url(${bgImageUrl})` }}>
       <div style={styles.overlay} />
       <header style={styles.header}>
-        <img src={logoUrl} alt="Logo" style={styles.logo} />
+        <img src={logoUrl} alt="Kasongo Logo" style={styles.logo} />
       </header>
       <main style={styles.main}>
         <Chat backendUrl={backendUrl} />
@@ -99,7 +102,10 @@ const styles = {
   },
   overlay: {
     position: "fixed",
-    top: 0, left: 0, right: 0, bottom: 0,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backdropFilter: "blur(8px)",
     backgroundColor: "rgba(255,255,255,0.2)",
     zIndex: 0,
@@ -130,16 +136,20 @@ const styles = {
     borderRadius: 12,
     boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
     width: "80%",
-    maxWidth: "none",
+    maxWidth: 600,
     display: "flex",
     flexDirection: "column",
     height: "80vh",
+    minHeight: 400,
   },
   chatLog: {
     flex: 1,
     overflowY: "auto",
     padding: 20,
     fontSize: 16,
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
   },
   placeholder: {
     color: "#888",
@@ -148,25 +158,24 @@ const styles = {
     marginTop: 50,
   },
   message: {
-    marginBottom: 12,
-    padding: 10,
-    borderRadius: 8,
+    padding: 12,
+    borderRadius: 20,
+    maxWidth: "70%",
+    wordWrap: "break-word",
+    whiteSpace: "pre-wrap",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
   },
   userMsg: {
     backgroundColor: "#d1e7dd",
-    alignSelf: "flex-end",
-    maxWidth: "80%",
+    color: "#0f5132",
   },
   agentMsg: {
-    backgroundColor: "#f8d7da",
-    alignSelf: "flex-start",
-    maxWidth: "80%",
+    backgroundColor: "#f8f9fa",
+    color: "#212529",
   },
   errorMsg: {
-    backgroundColor: "#f5c6cb",
-    color: "#721c24",
-    alignSelf: "center",
-    maxWidth: "80%",
+    backgroundColor: "#f8d7da",
+    color: "#842029",
   },
   inputContainer: {
     padding: 10,
@@ -179,20 +188,22 @@ const styles = {
     flex: 1,
     resize: "none",
     padding: 10,
-    borderRadius: 8,
+    borderRadius: 12,
     border: "1px solid #ccc",
     fontSize: 16,
     fontFamily: "inherit",
+    minHeight: 40,
   },
   sendButton: {
     backgroundColor: "#000000",
     border: "none",
     color: "white",
-    padding: "10px 18px",
-    borderRadius: 20,
+    padding: "10px 24px",
+    borderRadius: 24,
     cursor: "pointer",
     fontWeight: "bold",
-    fontSize: 14,
+    fontSize: 16,
+    userSelect: "none",
   },
   footer: {
     position: "relative",
