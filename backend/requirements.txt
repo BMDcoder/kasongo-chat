@@ -7,3 +7,4 @@ python-jose
 httpx
 psycopg2-binary
 python-multipart
+cohere
