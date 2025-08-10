@@ -7,7 +7,7 @@ from database import get_session
 
 router = APIRouter(tags=["auth"])
 
-@router.post("/admin/login", response_model=Token)
+@router.post("/login", response_model=Token)
 def admin_login(payload: LoginIn, session: Session = Depends(get_session)):
     user = session.exec(select(User).where(User.username == payload.username)).first()
     if not user or not verify_password(payload.password, user.password_hash) or not user.is_admin:
