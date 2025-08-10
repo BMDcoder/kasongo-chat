@@ -188,7 +188,7 @@ const styles = {
     flex: 1,
     resize: "none",
     padding: 10,
-    borderRadius: 20,
+    borderRadius: 40,
     border: "1px solid #ccc",
     fontSize: 16,
     fontFamily: "inherit",
