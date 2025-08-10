@@ -5,7 +5,7 @@ from schemas import ChatIn
 from database import get_session
 from auth import get_password_hash
 from config import COHERE_API_KEY
-from cohere import ClientV2
+import cohere
 
 router = APIRouter(tags=["chat"])
 
