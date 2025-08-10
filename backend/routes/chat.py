@@ -7,11 +7,10 @@ from auth import get_password_hash
 from config import COHERE_API_KEY
 import cohere
 
-router = APIRouter(tags=["chat"])
 
 # Initialize Cohere client once
 co = cohere.ClientV2(COHERE_API_KEY) if COHERE_API_KEY else None
-
+router = APIRouter(tags=["chat"])
 
 @router.post("/chat")
 def chat_endpoint(payload: ChatIn, session: Session = Depends(get_session)):
