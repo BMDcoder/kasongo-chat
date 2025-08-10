@@ -1,7 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 const logoUrl = "https://i.postimg.cc/8ktYQrWd/kasongo.png";
 const bgImageUrl = "https://i.postimg.cc/8z2KB2fs/kasongobg-03.png?auto=format&fit=crop&w=1470&q=80";
+
+const chatLogRef = useRef(null);
 
 function Chat({ backendUrl }) {
   const [agentId] = useState(1);
@@ -35,9 +37,15 @@ function Chat({ backendUrl }) {
     }
   };
 
+   useEffect(() => {
+    if (chatLogRef.current) {
+      chatLogRef.current.scrollTop = chatLogRef.current.scrollHeight;
+    }
+  }, [log]);
+
   return (
     <div style={styles.chatContainer}>
-      <div style={styles.chatLog}>
+      <div style={styles.chatLog} ref={chatLogRef}>
         {log.length === 0 && <div style={styles.placeholder}>Hey, Let's talk business!</div>}
         {log.map((m, i) => (
           <div
