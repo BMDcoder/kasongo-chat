@@ -9,7 +9,7 @@ import httpx
 
 router = APIRouter(tags=["chat"])
 
-HF_MODEL = "model_owner/deepseek-model"  # Replace with your actual Hugging Face model
+HF_MODEL = "deepseek-ai/DeepSeek-R1"  # Replace with your actual Hugging Face model
 
 @router.post("/chat")
 def chat_endpoint(payload: ChatIn, session: Session = Depends(get_session)):
