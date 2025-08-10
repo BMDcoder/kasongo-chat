@@ -1,3 +1,4 @@
+import cohere
 from fastapi import APIRouter, HTTPException, Depends
 from sqlmodel import select, Session
 from models import User, Agent, Chat, Message
@@ -5,7 +6,6 @@ from schemas import ChatIn
 from database import get_session
 from auth import get_password_hash
 from config import COHERE_API_KEY
-import cohere
 
 router = APIRouter(tags=["chat"])
 
