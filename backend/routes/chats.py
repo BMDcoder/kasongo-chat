@@ -9,8 +9,8 @@ import cohere
 
 router = APIRouter(tags=["chat"])
 
-# Initialize Cohere client once
-co = cohere.Client(COHERE_API_KEY) if COHERE_API_KEY else None
+# Initialize Cohere client once with ClientV2 if API key is set
+co = cohere.ClientV2(COHERE_API_KEY) if COHERE_API_KEY else None
 
 
 @router.get("/chats")
@@ -35,6 +35,7 @@ def get_chats(username: str = Query(...), session: Session = Depends(get_session
 @router.post("/chats")
 def create_chat(payload: ChatIn, session: Session = Depends(get_session)):
     """Handles chat requests between user and AI agent."""
+
     # 1️⃣ Find or create user
     user = session.exec(select(User).where(User.username == payload.username)).first()
     if not user:
@@ -59,21 +60,17 @@ def create_chat(payload: ChatIn, session: Session = Depends(get_session)):
     session.add(msg)
     session.commit()
 
-    # 5️⃣ Get AI response
+    # 5️⃣ Get AI response from Cohere ClientV2 chat API
     if COHERE_API_KEY and co:
         try:
             response = co.chat(
-                model="command",
+                model="command-a-03-2025",
                 messages=[
                     {"role": "system", "content": agent.system_prompt or "You are a helpful assistant."},
                     {"role": "user", "content": payload.message}
                 ],
             )
-            if hasattr(response, "text"):
-                ai_text = response.text
-            else:
-                ai_text = str(response)
-
+            ai_text = response.message.content[0].text
         except Exception as e:
             ai_text = f"(Cohere API call failed) {str(e)}"
     else:
