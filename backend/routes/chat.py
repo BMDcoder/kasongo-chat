@@ -9,7 +9,7 @@ import httpx
 
 router = APIRouter(tags=["chat"])
 
-@router.post("/chat")
+@router.post("/")
 def chat_endpoint(payload: ChatIn, session: Session = Depends(get_session)):
     user = session.exec(select(User).where(User.username == payload.username)).first()
     if not user:
