@@ -10,3 +10,4 @@ SECRET_KEY = os.getenv("SECRET_KEY", "devsecret")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
 OPENAI_KEY = os.getenv("OPENAI_API_KEY", "")
+HF_API_TOKEN = os.getenv("HF_API_TOKEN", "")
