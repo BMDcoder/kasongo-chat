@@ -13,7 +13,7 @@ router = APIRouter(tags=["chat"])
 co = cohere.ClientV2(COHERE_API_KEY) if COHERE_API_KEY else None
 
 
-@router.post("/chat")
+@router.post("/chats")
 def chat_endpoint(payload: ChatIn, session: Session = Depends(get_session)):
     """Handles chat requests between user and AI agent."""
 
