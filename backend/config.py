@@ -3,8 +3,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Railway sets DATABASE_URL as environment variable like this:
-DATABASE_URL = os.getenv("DATABASE_URL", os.getenv("DATABASE_URL"))
+# Railway typically sets DATABASE_URL as environment variable
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 SECRET_KEY = os.getenv("SECRET_KEY", "devsecret")
 ALGORITHM = "HS256"
