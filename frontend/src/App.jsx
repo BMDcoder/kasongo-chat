@@ -185,14 +185,14 @@ const styles = {
     fontFamily: "inherit",
   },
   sendButton: {
-    backgroundColor: "#007bff",
+    backgroundColor: "#000000",
     border: "none",
     color: "white",
     padding: "10px 18px",
-    borderRadius: 8,
+    borderRadius: 20,
     cursor: "pointer",
     fontWeight: "bold",
-    fontSize: 16,
+    fontSize: 14,
   },
   footer: {
     position: "relative",
