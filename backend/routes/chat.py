@@ -46,7 +46,10 @@ def chat_endpoint(payload: ChatIn, session: Session = Depends(get_session)):
                     {"role": "user", "content": payload.message}
                 ],
             )
-            ai_text = response.message
+        if response.message.content and len(response.message.content) > 0:
+            ai_text = response.message.content[0].text
+        else:
+            ai_text = str(response.message)
         except Exception as e:
             ai_text = f"(Cohere API call failed) {str(e)}"
     else:
