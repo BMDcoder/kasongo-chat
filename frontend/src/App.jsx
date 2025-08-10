@@ -9,7 +9,7 @@ function Chat({ backendUrl }) {
   const send = async () => {
     if (!input) return;
     const body = { username, agent_id: agentId, message: input };
-    const res = await fetch(`${backendUrl}/api/chatx`, {
+    const res = await fetch(`${backendUrl}/api/chats`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
