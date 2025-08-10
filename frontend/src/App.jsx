@@ -1,99 +1,207 @@
-import React, {useState, useEffect} from "react";
+import React, { useState } from "react";
+
+const logoUrl = "https://yourdomain.com/logo.png"; // <-- Replace with your actual logo URL
+const bgImageUrl = "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1470&q=80"; // example background image
 
 function Chat({ backendUrl }) {
-  const [agentId, setAgentId] = useState(1);
-  const [username, setUsername] = useState("guest");
+  const [agentId] = useState(1); // fixed to 1 since no UI to change
+  const [username] = useState("guest"); // fixed to guest, no UI input
   const [input, setInput] = useState("");
   const [log, setLog] = useState([]);
 
   const send = async () => {
-    if(!input) return;
+    if (!input.trim()) return;
     const body = { username, agent_id: agentId, message: input };
-    const res = await fetch(`${backendUrl}/api/chats`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
-    });
-    const data = await res.json();
-    setLog(l => [...l, { role: "user", content: input }, { role: "agent", content: data.response }]);
-    setInput("");
+    try {
+      const res = await fetch(`${backendUrl}/api/chats`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error(`Status ${res.status}`);
+      const data = await res.json();
+      setLog((l) => [...l, { role: "user", content: input }, { role: "agent", content: data.response }]);
+      setInput("");
+    } catch (e) {
+      setLog((l) => [...l, { role: "error", content: "Failed to send message." }]);
+      console.error("Chat request failed:", e);
+    }
+  };
+
+  // Send on Enter key press
+  const onKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      send();
+    }
   };
 
   return (
-    <div style={{padding:20}}>
-      <h2>Kasongo — Chat</h2>
-      <div>
-        <label>Username: <input value={username} onChange={e=>setUsername(e.target.value)} /></label>
-        <label style={{marginLeft:10}}>Agent ID: <input value={agentId} onChange={e=>setAgentId(Number(e.target.value))} style={{width:60}} /></label>
+    <div style={styles.chatContainer}>
+      <div style={styles.chatLog}>
+        {log.length === 0 && <div style={styles.placeholder}>Say hi to your AI agent!</div>}
+        {log.map((m, i) => (
+          <div
+            key={i}
+            style={{
+              ...styles.message,
+              ...(m.role === "user" ? styles.userMsg : m.role === "agent" ? styles.agentMsg : styles.errorMsg),
+            }}
+          >
+            <strong>{m.role === "user" ? "You" : m.role === "agent" ? "Agent" : "Error"}:</strong> {m.content}
+          </div>
+        ))}
       </div>
-      <div style={{border:"1px solid #ddd", padding:10, minHeight:200, marginTop:10}}>
-        {log.map((m,i)=>(<div key={i}><strong>{m.role}:</strong> {m.content}</div>))}
-      </div>
-      <div style={{marginTop:10}}>
-        <input value={input} onChange={e=>setInput(e.target.value)} style={{width:"70%"}} placeholder="Ask the agent..." />
-        <button onClick={send} style={{marginLeft:10}}>Send</button>
+      <div style={styles.inputContainer}>
+        <textarea
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={onKeyDown}
+          placeholder="Type your message..."
+          style={styles.textarea}
+          rows={2}
+        />
+        <button onClick={send} style={styles.sendButton}>
+          Send
+        </button>
       </div>
     </div>
-  )
+  );
 }
 
-function Admin({ backendUrl }) {
-  const [token, setToken] = useState("");
-  const [agents, setAgents] = useState([]);
-  const [form, setForm] = useState({name:"Local Marketer", system_prompt:"You are a professional local marketing consultant.", description:""});
-
-  useEffect(()=>{ if(token) loadAgents(); }, [token]);
-
-  const login = async () => {
-    const res = await fetch(`${backendUrl}/api/admin/login`, {
-      method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({username:"admin", password:"adminpass"})
-    });
-    const data = await res.json();
-    setToken(data.access_token);
-  };
-
-  const loadAgents = async () => {
-    const res = await fetch(`${backendUrl}/api/admin/agents`, { headers: { Authorization: "Bearer " + token }});
-    const data = await res.json();
-    setAgents(data);
-  };
-
-  const createAgent = async () => {
-    await fetch(`${backendUrl}/api/admin/agents`, { method:"POST", headers: { "Content-Type":"application/json", Authorization: "Bearer " + token }, body: JSON.stringify(form) });
-    loadAgents();
-  };
-
-  return (
-    <div style={{padding:20}}>
-      <h2>Admin</h2>
-      {!token ? <button onClick={login}>Login as default admin</button> : <>
-        <div>
-          <h3>Create Agent</h3>
-          <label>Name: <input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} /></label><br/>
-          <label>System prompt:<br/><textarea value={form.system_prompt} onChange={e=>setForm({...form,system_prompt:e.target.value})} rows={4} cols={60} /></label><br/>
-          <button onClick={createAgent}>Create</button>
-        </div>
-        <div>
-          <h3>Agents</h3>
-          <ul>
-            {agents.map((a,i)=>(<li key={i}>{a.name}</li>))}
-          </ul>
-        </div>
-      </>}
-    </div>
-  )
-}
-
-export default function App(){
+export default function App() {
   const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
-  const [page, setPage] = useState("chat");
+
   return (
-    <div>
-      <div style={{padding:10, borderBottom:"1px solid #ddd"}}>
-        <button onClick={()=>setPage("chat")}>Chat</button>
-        <button onClick={()=>setPage("admin")} style={{marginLeft:10}}>Admin</button>
-      </div>
-      {page==="chat" ? <Chat backendUrl={backendUrl} /> : <Admin backendUrl={backendUrl} />}
+    <div style={{ ...styles.appContainer, backgroundImage: `url(${bgImageUrl})` }}>
+      <div style={styles.overlay} />
+      <header style={styles.header}>
+        <img src={logoUrl} alt="Logo" style={styles.logo} />
+      </header>
+      <main style={styles.main}>
+        <Chat backendUrl={backendUrl} />
+      </main>
+      <footer style={styles.footer}>powered by BMDigital</footer>
     </div>
-  )
+  );
 }
+
+const styles = {
+  appContainer: {
+    position: "relative",
+    minHeight: "100vh",
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+    color: "#333",
+    display: "flex",
+    flexDirection: "column",
+  },
+  overlay: {
+    position: "fixed",
+    top: 0, left: 0, right: 0, bottom: 0,
+    backdropFilter: "blur(8px)",
+    backgroundColor: "rgba(255,255,255,0.2)",
+    zIndex: 0,
+  },
+  header: {
+    position: "relative",
+    zIndex: 1,
+    padding: "20px 0",
+    textAlign: "center",
+    backgroundColor: "rgba(255,255,255,0.6)",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+  },
+  logo: {
+    height: 60,
+    objectFit: "contain",
+  },
+  main: {
+    flex: 1,
+    position: "relative",
+    zIndex: 1,
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  chatContainer: {
+    backgroundColor: "rgba(255,255,255,0.85)",
+    borderRadius: 12,
+    boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
+    width: "100%",
+    maxWidth: 600,
+    display: "flex",
+    flexDirection: "column",
+    height: "80vh",
+  },
+  chatLog: {
+    flex: 1,
+    overflowY: "auto",
+    padding: 20,
+    fontSize: 16,
+  },
+  placeholder: {
+    color: "#888",
+    fontStyle: "italic",
+    textAlign: "center",
+    marginTop: 50,
+  },
+  message: {
+    marginBottom: 12,
+    padding: 10,
+    borderRadius: 8,
+  },
+  userMsg: {
+    backgroundColor: "#d1e7dd",
+    alignSelf: "flex-end",
+    maxWidth: "80%",
+  },
+  agentMsg: {
+    backgroundColor: "#f8d7da",
+    alignSelf: "flex-start",
+    maxWidth: "80%",
+  },
+  errorMsg: {
+    backgroundColor: "#f5c6cb",
+    color: "#721c24",
+    alignSelf: "center",
+    maxWidth: "80%",
+  },
+  inputContainer: {
+    padding: 10,
+    borderTop: "1px solid #ccc",
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+  },
+  textarea: {
+    flex: 1,
+    resize: "none",
+    padding: 10,
+    borderRadius: 8,
+    border: "1px solid #ccc",
+    fontSize: 16,
+    fontFamily: "inherit",
+  },
+  sendButton: {
+    backgroundColor: "#007bff",
+    border: "none",
+    color: "white",
+    padding: "10px 18px",
+    borderRadius: 8,
+    cursor: "pointer",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+  footer: {
+    position: "relative",
+    zIndex: 1,
+    textAlign: "center",
+    padding: 12,
+    fontSize: 14,
+    color: "#555",
+    backgroundColor: "rgba(255,255,255,0.6)",
+    boxShadow: "0 -2px 8px rgba(0,0,0,0.1)",
+  },
+};
