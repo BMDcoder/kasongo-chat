@@ -39,7 +39,7 @@ function Chat({ backendUrl }) {
   return (
     <div style={styles.chatContainer}>
       <div style={styles.chatLog}>
-        {log.length === 0 && <div style={styles.placeholder}>Say hi to your AI agent!</div>}
+        {log.length === 0 && <div style={styles.placeholder}>Hey, Let's talk business!</div>}
         {log.map((m, i) => (
           <div
             key={i}
@@ -129,8 +129,8 @@ const styles = {
     backgroundColor: "rgba(255,255,255,0.85)",
     borderRadius: 12,
     boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
-    width: "100%",
-    maxWidth: 600,
+    width: "80%",
+    maxWidth: none,
     display: "flex",
     flexDirection: "column",
     height: "80vh",
