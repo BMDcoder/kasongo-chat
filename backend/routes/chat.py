@@ -39,7 +39,7 @@ def chat_endpoint(payload: ChatIn, session: Session = Depends(get_session)):
         json_data = {"inputs": payload.message}
         try:
             r = httpx.post(
-                f"https://router.huggingface.co/v1/{HF_MODEL}",
+                f"https://router.huggingface.co/v1/chat/completions/{HF_MODEL}",
                 headers=headers,
                 json=json_data,
                 timeout=30.0,
