@@ -4,15 +4,16 @@ from models import User, Agent, Chat, Message
 from schemas import ChatIn
 from database import get_session
 from auth import get_password_hash
-from config import OPENAI_KEY
-from openai import OpenAI
+from config import COHERE_API_KEY
+import cohere
 
 router = APIRouter(tags=["chat"])
 
-# Initialize OpenAI client once
-client = OpenAI(api_key=OPENAI_KEY) if OPENAI_KEY else None
+# Initialize Cohere client once
+co = cohere.ClientV2(COHERE_API_KEY) if COHERE_API_KEY else None
 
-@router.post("/chatx")
+
+@router.post("/chats")
 def chat_endpoint(payload: ChatIn, session: Session = Depends(get_session)):
     """Handles chat requests between user and AI agent."""
 
@@ -40,25 +41,28 @@ def chat_endpoint(payload: ChatIn, session: Session = Depends(get_session)):
     session.add(msg)
     session.commit()
 
-    # 5️⃣ Get AI response from OpenAI
-    if OPENAI_KEY and client:
+    # 5️⃣ Get AI response
+    if COHERE_API_KEY and co:
         try:
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",  # You can change to "gpt-4o" or another available model
+            response = co.chat(
+                model="command-a-03-2025",
                 messages=[
                     {"role": "system", "content": agent.system_prompt or "You are a helpful assistant."},
                     {"role": "user", "content": payload.message}
                 ],
-                max_tokens=500
             )
 
-            ai_text = response.choices[0].message.content.strip()
+            # Extract plain text from response
+            if hasattr(response, "message") and response.message.content:
+                ai_text = response.message.content[0].text
+            else:
+                ai_text = str(response)
 
         except Exception as e:
-            ai_text = f"(OpenAI API call failed) {str(e)}"
+            ai_text = f"(Cohere API call failed) {str(e)}"
 
     else:
-        ai_text = f"OpenAI API key not configured; running in mock mode. Echo: {payload.message}"
+        ai_text = f"Cohere API key not configured; running in mock mode. Echo: {payload.message}"
 
     # 6️⃣ Save AI response
     ai_msg = Message(chat_id=chat.id, role="agent", content=ai_text)
