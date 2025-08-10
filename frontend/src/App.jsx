@@ -45,7 +45,7 @@ function Admin({ backendUrl }) {
   useEffect(()=>{ if(token) loadAgents(); }, [token]);
 
   const login = async () => {
-    const res = await fetch(`${backendUrl}/admin/login`, {
+    const res = await fetch(`${backendUrl}/api/admin/login`, {
       method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({username:"admin", password:"adminpass"})
     });
     const data = await res.json();
@@ -53,13 +53,13 @@ function Admin({ backendUrl }) {
   };
 
   const loadAgents = async () => {
-    const res = await fetch(`${backendUrl}/admin/agents`, { headers: { Authorization: "Bearer " + token }});
+    const res = await fetch(`${backendUrl}/api/admin/agents`, { headers: { Authorization: "Bearer " + token }});
     const data = await res.json();
     setAgents(data);
   };
 
   const createAgent = async () => {
-    await fetch(`${backendUrl}/admin/agents`, { method:"POST", headers: { "Content-Type":"application/json", Authorization: "Bearer " + token }, body: JSON.stringify(form) });
+    await fetch(`${backendUrl}/api/admin/agents`, { method:"POST", headers: { "Content-Type":"application/json", Authorization: "Bearer " + token }, body: JSON.stringify(form) });
     loadAgents();
   };
 
