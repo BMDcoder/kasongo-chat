@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-const logoUrl = "https://yourdomain.com/logo.png"; // <-- Replace with your actual logo URL
+const logoUrl = "https://i.postimg.cc/8ktYQrWd/Asset-1.png"; // <-- Replace with your actual logo URL
 const bgImageUrl = "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1470&q=80"; // example background image
 
 function Chat({ backendUrl }) {
