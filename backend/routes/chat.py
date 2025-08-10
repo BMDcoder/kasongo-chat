@@ -4,12 +4,12 @@ from models import User, Agent, Chat, Message
 from schemas import ChatIn
 from database import get_session
 from auth import get_password_hash
-from config import COHERE_API_KEY  # Your Cohere API key here
-import httpx
+from config import COHERE_API_KEY
+import cohere
 
 router = APIRouter(tags=["chat"])
 
-COHERE_API_URL = "https://api.cohere.ai/generate"
+co = cohere.ClientV2(COHERE_API_KEY)  # Initialize once
 
 @router.post("/chat")
 def chat_endpoint(payload: ChatIn, session: Session = Depends(get_session)):
@@ -38,35 +38,15 @@ def chat_endpoint(payload: ChatIn, session: Session = Depends(get_session)):
     session.commit()
 
     if COHERE_API_KEY:
-        headers = {
-            "Authorization": f"Bearer {COHERE_API_KEY}",
-            "Content-Type": "application/json",
-        }
-        # Construct prompt combining system prompt and user message
-        prompt = f"{agent.system_prompt}\nUser: {payload.message}\nAssistant:"
-
-        body = {
-            "model": "command-xlarge-nightly",  # Use your chosen model here
-            "prompt": prompt,
-            "max_tokens": 300,
-            "temperature": 0.7,
-            "k": 0,
-            "p": 1,
-            "frequency_penalty": 0,
-            "presence_penalty": 0,
-            "stop_sequences": ["User:", "Assistant:"],
-        }
-
         try:
-            response = httpx.post(
-                COHERE_API_URL,
-                headers=headers,
-                json=body,
-                timeout=30.0,
+            response = co.chat(
+                model="command-a-03-2025",  # or agent-specific model if you want
+                messages=[
+                    {"role": "system", "content": agent.system_prompt or "You are a helpful assistant."},
+                    {"role": "user", "content": payload.message}
+                ],
             )
-            response.raise_for_status()
-            data = response.json()
-            ai_text = data["generations"][0]["text"].strip()
+            ai_text = response.generations[0].text.strip()
         except Exception as e:
             ai_text = f"(Cohere API call failed) {str(e)}"
     else:
