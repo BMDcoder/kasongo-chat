@@ -3,14 +3,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-SECRET_KEY = os.getenv("SECRET_KEY", "devsecret")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
-OPENAI_KEY = os.getenv("OPENAI_API_KEY", "")
-HF_API_TOKEN = os.getenv("HF_API_TOKEN", "")
-COHERE_API_KEY = os.getenv("COHERE_API_KEY", "")
-
-
 # Railway sets DATABASE_URL as environment variable like this:
 DATABASE_URL = os.getenv("DATABASE_URL", os.getenv("POSTGRES_DATABASE_URL"))
 
@@ -23,3 +15,11 @@ if not DATABASE_URL:
     PGDATABASE = os.getenv("PGDATABASE", "postgres")
 
     DATABASE_URL = f"postgresql+psycopg2://{PGUSER}:{PGPASSWORD}@{PGHOST}:{PGPORT}/{PGDATABASE}"
+
+
+SECRET_KEY = os.getenv("SECRET_KEY", "devsecret")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
+OPENAI_KEY = os.getenv("OPENAI_API_KEY", "")
+HF_API_TOKEN = os.getenv("HF_API_TOKEN", "")
+COHERE_API_KEY = os.getenv("COHERE_API_KEY", "")
