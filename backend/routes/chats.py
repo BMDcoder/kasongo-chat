@@ -12,7 +12,7 @@ router = APIRouter(tags=["chat"])
 # Initialize OpenAI client once
 client = OpenAI(api_key=OPENAI_KEY) if OPENAI_KEY else None
 
-@router.post("/chats")
+@router.post("/chatx")
 def chat_endpoint(payload: ChatIn, session: Session = Depends(get_session)):
     """Handles chat requests between user and AI agent."""
 
