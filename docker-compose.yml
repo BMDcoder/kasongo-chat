@@ -23,7 +23,7 @@ services:
     ports:
       - "3000:3000"      # Typical frontend port
     environment:
-      - VITE_BACKEND_URL=http://backend:8000   # Use internal Docker network for local dev
+      - VITE_BACKEND_URL= https://kasongo-chat-production-703e.up.railway.app # Use internal Docker network for local dev
     depends_on:
       - backend
 
