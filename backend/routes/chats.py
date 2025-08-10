@@ -1,46 +1,40 @@
-from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlmodel import select, Session
 from models import User, Agent, Chat, Message
 from schemas import ChatIn
 from database import get_session
 from auth import get_password_hash
-from config import OPENAI_API_KEY
-from openai import OpenAI
+from config import COHERE_API_KEY
+import cohere
 
 router = APIRouter(tags=["chat"])
 
-# Initialize OpenAI client once
-client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+# Initialize Cohere client once
+co = cohere.Client(COHERE_API_KEY) if COHERE_API_KEY else None
 
 
-@router.api_route("/chats", methods=["GET", "POST"])
-def chat_endpoint(
-    payload: Optional[ChatIn] = None,
-    chat_id: Optional[int] = Query(None),
-    session: Session = Depends(get_session)
-):
-    """Handles chat GET and POST requests."""
+@router.get("/chats")
+def get_chats(username: str = Query(...), session: Session = Depends(get_session)):
+    """Return all chats for a given username."""
+    user = session.exec(select(User).where(User.username == username)).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
 
-    # ----- GET: Return existing chat history -----
-    if payload is None and chat_id is not None:
-        chat = session.get(Chat, chat_id)
-        if not chat:
-            raise HTTPException(status_code=404, detail="Chat not found")
-
-        messages = session.exec(
-            select(Message).where(Message.chat_id == chat_id)
-        ).all()
-
-        return {
-            "chat_id": chat_id,
+    chats = session.exec(select(Chat).where(Chat.user_id == user.id)).all()
+    result = []
+    for chat in chats:
+        messages = session.exec(select(Message).where(Message.chat_id == chat.id)).all()
+        result.append({
+            "chat_id": chat.id,
+            "agent_id": chat.agent_id,
             "messages": [{"role": m.role, "content": m.content} for m in messages]
-        }
+        })
+    return result
 
-    # ----- POST: Start a new chat -----
-    if payload is None:
-        raise HTTPException(status_code=400, detail="Request body required for POST")
 
+@router.post("/chats")
+def create_chat(payload: ChatIn, session: Session = Depends(get_session)):
+    """Handles chat requests between user and AI agent."""
     # 1️⃣ Find or create user
     user = session.exec(select(User).where(User.username == payload.username)).first()
     if not user:
@@ -66,20 +60,24 @@ def chat_endpoint(
     session.commit()
 
     # 5️⃣ Get AI response
-    if OPENAI_API_KEY and client:
+    if COHERE_API_KEY and co:
         try:
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
+            response = co.chat(
+                model="command",
                 messages=[
                     {"role": "system", "content": agent.system_prompt or "You are a helpful assistant."},
                     {"role": "user", "content": payload.message}
-                ]
+                ],
             )
-            ai_text = response.choices[0].message["content"]
+            if hasattr(response, "text"):
+                ai_text = response.text
+            else:
+                ai_text = str(response)
+
         except Exception as e:
-            ai_text = f"(OpenAI API call failed) {str(e)}"
+            ai_text = f"(Cohere API call failed) {str(e)}"
     else:
-        ai_text = f"OpenAI API key not configured; mock mode. Echo: {payload.message}"
+        ai_text = f"Cohere API key not configured; running in mock mode. Echo: {payload.message}"
 
     # 6️⃣ Save AI response
     ai_msg = Message(chat_id=chat.id, role="agent", content=ai_text)
