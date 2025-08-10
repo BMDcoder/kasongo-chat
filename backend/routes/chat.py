@@ -38,16 +38,16 @@ def chat_endpoint(payload: ChatIn, session: Session = Depends(get_session)):
     session.commit()
 
     if COHERE_API_KEY:
-    try:
-        response = co.chat(
-            model="command-a-03-2025",  # or agent-specific model if you want
-            messages=[
-                {"role": "system", "content": agent.system_prompt or "You are a helpful assistant."},
-                {"role": "user", "content": payload.message}
-            ],
-        )
-        if response.message.content and len(response.message.content) > 0:
-            ai_text = response.message.content[0].text
+        try:
+            response = co.chat(
+                model="command-a-03-2025",  # or agent-specific model if you want
+                messages=[
+                    {"role": "system", "content": agent.system_prompt or "You are a helpful assistant."},
+                    {"role": "user", "content": payload.message}
+                ],
+            )
+            if response.message.content and len(response.message.content) > 0:
+                ai_text = response.message.content[0].text
         else:
             ai_text = str(response.message)
     except Exception as e:
