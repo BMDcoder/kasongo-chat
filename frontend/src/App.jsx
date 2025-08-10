@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 
-const logoUrl = "https://yourdomain.com/logo.png"; // <-- Replace with your actual logo URL
-const bgImageUrl = "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1470&q=80"; // example background image
+const logoUrl = "https://i.postimg.cc/8ktYQrWd/kasongo.png"; // <-- Replace with your actual logo URL
+const bgImageUrl = "https://i.postimg.cc/8z2KB2fs/kasongobg-03.png?auto=format&fit=crop&w=1470&q=80"; // example background image
 
 function Chat({ backendUrl }) {
   const [agentId] = useState(1); // fixed to 1 since no UI to change
