@@ -36,5 +36,5 @@ app.add_middleware(
 )
 
 app.include_router(auth_router, prefix="/api/admin")
-app.include_router(agent_router, prefix="/api")
+app.include_router(agent_router, prefix="/api/admin")
 app.include_router(chat_router, prefix="/api")
