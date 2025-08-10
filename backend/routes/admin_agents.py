@@ -6,7 +6,7 @@ from schemas import AgentIn
 from auth import admin_required
 from database import get_session
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(tags=["admin"])
 
 @router.post("/agents", response_model=dict)
 def create_agent(agent: AgentIn, admin=Depends(admin_required), session: Session = Depends(get_session)):
