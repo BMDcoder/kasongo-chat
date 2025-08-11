@@ -181,8 +181,8 @@ export default function App() {
       <footer
         style={{
           ...styles.footer,
-          backgroundColor: isDarkMode ? "rgba(20,20,20,0.8)" : "rgba(255,255,255,0.6)",
-          color: isDarkMode ? "#bbb" : "#555",
+          backgroundColor: "rgba(255,255,255,0.6)", // fixed footer background
+          color: "#555",                             // fixed footer text color
           position: "relative",
         }}
       >
@@ -206,7 +206,17 @@ export default function App() {
         >
           {isDarkMode ? "Light Mode" : "Dark Mode"}
         </button>
-        powered by BMDigital
+        <div>
+          powered by{" "}
+          <a
+            href="https://bmdigital.netlify.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "#555", textDecoration: "underline" }}
+          >
+            BMDigital
+          </a>
+        </div>
       </footer>
     </div>
   );
