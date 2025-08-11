@@ -146,7 +146,7 @@ const styles = {
     boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
     border: "1px solid #ffffff",
     width: "98%",
-    maxWidth: 800,
+    maxWidth: 900,
     display: "flex",
     flexDirection: "column",
     height: "70vh",
@@ -162,7 +162,7 @@ const styles = {
     gap: 10,
   },
   placeholder: {
-    color: "#888",
+    color: "#000000",
     fontStyle: "italic",
     textAlign: "center",
     marginTop: 50,
