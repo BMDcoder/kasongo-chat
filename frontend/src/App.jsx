@@ -1,19 +1,20 @@
 import React, { useState, useEffect, useRef } from "react";
 
 const logoUrl = "https://i.postimg.cc/8ktYQrWd/kasongo.png";
-const bgImageUrl = "https://i.postimg.cc/sg19XnLg/kasongo-03.png?auto=format&fit=crop&w=1470&q=80";
+const bgImageUrlLight = "https://i.postimg.cc/sg19XnLg/kasongo-03.png?auto=format&fit=crop&w=1470&q=80";
+const bgImageUrlDark = "https://i.postimg.cc/t4LP5hJ8/kasongo-dark.jpg"; // You can replace this with a dark mode bg image or keep the same
 
-
-function Chat({ backendUrl }) {
-
+function Chat({ backendUrl, isDarkMode }) {
   const chatLogRef = useRef(null);
   const [agentId] = useState(1);
   const [username] = useState("guest");
   const [input, setInput] = useState("");
   const [log, setLog] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   const send = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || loading) return;
+    setLoading(true);
     const body = { username, agent_id: agentId, message: input };
     try {
       const res = await fetch(`${backendUrl}/api/chats`, {
@@ -28,6 +29,8 @@ function Chat({ backendUrl }) {
     } catch (e) {
       setLog((l) => [...l, { role: "error", content: "Failed to send message." }]);
       console.error("Chat request failed:", e);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -38,43 +41,63 @@ function Chat({ backendUrl }) {
     }
   };
 
-   useEffect(() => {
+  useEffect(() => {
     if (chatLogRef.current) {
       chatLogRef.current.scrollTop = chatLogRef.current.scrollHeight;
     }
-  }, [log]);
+  }, [log, loading]);
 
   return (
-    <div style={styles.chatContainer}>
+    <div style={{ ...styles.chatContainer, backgroundColor: isDarkMode ? "#1e1e1ebb" : "rgba(255,255,255,0.4)" }}>
       <div style={styles.chatLog} ref={chatLogRef}>
-        {log.length === 0 && <div style={styles.placeholder}>Hey, Let's talk business!, Biashara ni mazungumzo.</div>}
+        {log.length === 0 && <div style={{ ...styles.placeholder, color: isDarkMode ? "#ccc" : "#000" }}>Hey, Let's talk business!, Biashara ni mazungumzo.</div>}
         {log.map((m, i) => (
           <div
             key={i}
             style={{
               ...styles.message,
               ...(m.role === "user"
-                ? { ...styles.userMsg, alignSelf: "flex-end" }
+                ? { ...styles.userMsg, alignSelf: "flex-end", backgroundColor: isDarkMode ? "#3a634a" : styles.userMsg.backgroundColor, color: isDarkMode ? "#d1e7dd" : styles.userMsg.color }
                 : m.role === "agent"
-                ? { ...styles.agentMsg, alignSelf: "flex-start" }
-                : { ...styles.errorMsg, alignSelf: "center" }),
+                ? { ...styles.agentMsg, alignSelf: "flex-start", backgroundColor: isDarkMode ? "#333" : styles.agentMsg.backgroundColor, color: isDarkMode ? "#eee" : styles.agentMsg.color }
+                : { ...styles.errorMsg, alignSelf: "center", backgroundColor: isDarkMode ? "#722f37" : styles.errorMsg.backgroundColor, color: isDarkMode ? "#f1b0b7" : styles.errorMsg.color }),
             }}
           >
             {m.content}
           </div>
         ))}
+        {loading && (
+          <div style={{ ...styles.agentMsg, alignSelf: "flex-start", fontStyle: "italic", opacity: 0.7 }}>
+            Kasongo is typing...
+          </div>
+        )}
       </div>
-      <div style={styles.inputContainer}>
+      <div style={{ ...styles.inputContainer, borderTopColor: isDarkMode ? "#444" : "#ccc" }}>
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={onKeyDown}
           placeholder="How can I help you today..."
-          style={styles.textarea}
+          style={{
+            ...styles.textarea,
+            backgroundColor: isDarkMode ? "#333" : "white",
+            color: isDarkMode ? "white" : "black",
+            borderColor: isDarkMode ? "#555" : "#ccc",
+          }}
           rows={2}
+          disabled={loading}
         />
-        <button onClick={send} style={styles.sendButton}>
-          Send
+        <button
+          onClick={send}
+          style={{
+            ...styles.sendButton,
+            backgroundColor: isDarkMode ? "#4caf50" : "#000",
+            cursor: loading ? "not-allowed" : "pointer",
+            opacity: loading ? 0.6 : 1,
+          }}
+          disabled={loading}
+        >
+          {loading ? "Sending..." : "Send"}
         </button>
       </div>
     </div>
@@ -83,17 +106,46 @@ function Chat({ backendUrl }) {
 
 export default function App() {
   const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  // Toggle mode handler
+  const toggleDarkMode = () => setIsDarkMode((d) => !d);
 
   return (
-    <div style={{ ...styles.appContainer, backgroundImage: `url(${bgImageUrl})` }}>
-      <div style={styles.overlay} />
-      <header style={styles.header}>
+    <div
+      style={{
+        ...styles.appContainer,
+        backgroundImage: `url(${isDarkMode ? bgImageUrlDark : bgImageUrlLight})`,
+        color: isDarkMode ? "#eee" : "#333",
+      }}
+    >
+      <div style={{ ...styles.overlay, backgroundColor: isDarkMode ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.2)" }} />
+      <header style={{ ...styles.header, backgroundColor: isDarkMode ? "rgba(20,20,20,0.8)" : "rgba(255,255,255,0.6)", color: isDarkMode ? "#eee" : "#333" }}>
         <img src={logoUrl} alt="Kasongo Logo" style={styles.logo} />
+        <button
+          onClick={toggleDarkMode}
+          style={{
+            marginLeft: 20,
+            padding: "6px 12px",
+            borderRadius: 20,
+            border: "none",
+            cursor: "pointer",
+            backgroundColor: isDarkMode ? "#555" : "#ddd",
+            color: isDarkMode ? "#eee" : "#333",
+            fontWeight: "bold",
+          }}
+          aria-label="Toggle light/dark mode"
+          title="Toggle light/dark mode"
+        >
+          {isDarkMode ? "Light Mode" : "Dark Mode"}
+        </button>
       </header>
       <main style={styles.main}>
-        <Chat backendUrl={backendUrl} />
+        <Chat backendUrl={backendUrl} isDarkMode={isDarkMode} />
       </main>
-      <footer style={styles.footer}>powered by BMDigital</footer>
+      <footer style={{ ...styles.footer, backgroundColor: isDarkMode ? "rgba(20,20,20,0.8)" : "rgba(255,255,255,0.6)", color: isDarkMode ? "#bbb" : "#555" }}>
+        powered by BMDigital
+      </footer>
     </div>
   );
 }
@@ -105,7 +157,6 @@ const styles = {
     backgroundSize: "cover",
     backgroundPosition: "center",
     fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-    color: "#333",
     display: "flex",
     flexDirection: "column",
   },
@@ -116,7 +167,6 @@ const styles = {
     right: 0,
     bottom: 0,
     backdropFilter: "blur(8px)",
-    backgroundColor: "rgba(255,255,255,0.2)",
     zIndex: 0,
   },
   header: {
@@ -124,8 +174,10 @@ const styles = {
     zIndex: 1,
     padding: "20px 0",
     textAlign: "center",
-    backgroundColor: "rgba(255,255,255,0.6)",
     boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
   },
   logo: {
     height: 40,
@@ -141,7 +193,6 @@ const styles = {
     padding: 20,
   },
   chatContainer: {
-    backgroundColor: "rgba(255,255,255,0.4)",
     borderRadius: 12,
     boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
     border: "1px solid #ffffff",
@@ -162,7 +213,6 @@ const styles = {
     gap: 10,
   },
   placeholder: {
-    color: "#000000",
     fontStyle: "italic",
     textAlign: "center",
     marginTop: 50,
@@ -222,8 +272,6 @@ const styles = {
     textAlign: "center",
     padding: 12,
     fontSize: 14,
-    color: "#555",
-    backgroundColor: "rgba(255,255,255,0.6)",
     boxShadow: "0 -2px 8px rgba(0,0,0,0.1)",
   },
 };
