@@ -55,7 +55,7 @@ function Chat({ backendUrl, isDarkMode }) {
     <div
       style={{
         ...styles.chatContainer,
-        backgroundColor: "rgba(255,255,255,0.4)", // keep background same both modes
+        backgroundColor: isDarkMode ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.4)",
       }}
     >
       <div style={styles.chatLog} ref={chatLogRef}>
@@ -256,7 +256,6 @@ const styles = {
     padding: 20,
   },
   chatContainer: {
-    backgroundColor: "rgba(255,255,255,0.4)", // fixed translucent background
     borderRadius: 12,
     boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
     border: "1px solid #ffffff",
