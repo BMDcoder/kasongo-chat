@@ -264,7 +264,7 @@ const styles = {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    padding: 20,
+    padding: 10,
   },
   chatContainer: {
     borderRadius: 12,
