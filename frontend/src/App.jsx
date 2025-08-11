@@ -47,7 +47,7 @@ function Chat({ backendUrl }) {
   return (
     <div style={styles.chatContainer}>
       <div style={styles.chatLog} ref={chatLogRef}>
-        {log.length === 0 && <div style={styles.placeholder}>Hey, Let's talk business!</div>}
+        {log.length === 0 && <div style={styles.placeholder}>Hey, Let's talk business!, Biashara ni mazungumzo.</div>}
         {log.map((m, i) => (
           <div
             key={i}
