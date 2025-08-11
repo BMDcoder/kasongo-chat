@@ -141,9 +141,10 @@ const styles = {
     padding: 20,
   },
   chatContainer: {
-    backgroundColor: "rgba(255,255,255,0.85)",
+    backgroundColor: "rgba(255,255,255,0.4)",
     borderRadius: 12,
     boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
+    border: "1px solid #ffffff",
     width: "98%",
     maxWidth: 800,
     display: "flex",
