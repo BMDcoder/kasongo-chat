@@ -166,6 +166,7 @@ const styles = {
     fontStyle: "italic",
     textAlign: "center",
     marginTop: 50,
+    fontSize: 24,
   },
   message: {
     padding: 12,
