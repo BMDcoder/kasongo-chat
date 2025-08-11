@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 
 const logoUrl = "https://i.postimg.cc/8ktYQrWd/kasongo.png";
-const bgImageUrlLight = "https://i.postimg.cc/sg19XnLg/kasongo-03.png?auto=format&fit=crop&w=1470&q=80";
-const bgImageUrlDark = "https://i.postimg.cc/t4LP5hJ8/kasongo-dark.jpg"; // You can replace this with a dark mode bg image or keep the same
+const bgImageUrlLight =
+  "https://i.postimg.cc/sg19XnLg/kasongo-03.png?auto=format&fit=crop&w=1470&q=80";
 
 function Chat({ backendUrl, isDarkMode }) {
   const chatLogRef = useRef(null);
@@ -24,7 +24,11 @@ function Chat({ backendUrl, isDarkMode }) {
       });
       if (!res.ok) throw new Error(`Status ${res.status}`);
       const data = await res.json();
-      setLog((l) => [...l, { role: "user", content: input }, { role: "agent", content: data.response }]);
+      setLog((l) => [
+        ...l,
+        { role: "user", content: input },
+        { role: "agent", content: data.response },
+      ]);
       setInput("");
     } catch (e) {
       setLog((l) => [...l, { role: "error", content: "Failed to send message." }]);
@@ -48,31 +52,74 @@ function Chat({ backendUrl, isDarkMode }) {
   }, [log, loading]);
 
   return (
-    <div style={{ ...styles.chatContainer, backgroundColor: isDarkMode ? "#1e1e1ebb" : "rgba(255,255,255,0.4)" }}>
+    <div
+      style={{
+        ...styles.chatContainer,
+        backgroundColor: "rgba(255,255,255,0.4)", // keep background same both modes
+      }}
+    >
       <div style={styles.chatLog} ref={chatLogRef}>
-        {log.length === 0 && <div style={{ ...styles.placeholder, color: isDarkMode ? "#ccc" : "#000" }}>Hey, Let's talk business!, Biashara ni mazungumzo.</div>}
+        {log.length === 0 && (
+          <div
+            style={{
+              ...styles.placeholder,
+              color: isDarkMode ? "#ccc" : "#000",
+            }}
+          >
+            Hey, Let's talk business!, Biashara ni mazungumzo.
+          </div>
+        )}
         {log.map((m, i) => (
           <div
             key={i}
             style={{
               ...styles.message,
               ...(m.role === "user"
-                ? { ...styles.userMsg, alignSelf: "flex-end", backgroundColor: isDarkMode ? "#3a634a" : styles.userMsg.backgroundColor, color: isDarkMode ? "#d1e7dd" : styles.userMsg.color }
+                ? {
+                    ...styles.userMsg,
+                    alignSelf: "flex-end",
+                    backgroundColor: isDarkMode ? "#3a634a" : styles.userMsg.backgroundColor,
+                    color: isDarkMode ? "#d1e7dd" : styles.userMsg.color,
+                  }
                 : m.role === "agent"
-                ? { ...styles.agentMsg, alignSelf: "flex-start", backgroundColor: isDarkMode ? "#333" : styles.agentMsg.backgroundColor, color: isDarkMode ? "#eee" : styles.agentMsg.color }
-                : { ...styles.errorMsg, alignSelf: "center", backgroundColor: isDarkMode ? "#722f37" : styles.errorMsg.backgroundColor, color: isDarkMode ? "#f1b0b7" : styles.errorMsg.color }),
+                ? {
+                    ...styles.agentMsg,
+                    alignSelf: "flex-start",
+                    backgroundColor: isDarkMode ? "#333" : styles.agentMsg.backgroundColor,
+                    color: isDarkMode ? "#eee" : styles.agentMsg.color,
+                  }
+                : {
+                    ...styles.errorMsg,
+                    alignSelf: "center",
+                    backgroundColor: isDarkMode ? "#722f37" : styles.errorMsg.backgroundColor,
+                    color: isDarkMode ? "#f1b0b7" : styles.errorMsg.color,
+                  }),
             }}
           >
             {m.content}
           </div>
         ))}
         {loading && (
-          <div style={{ ...styles.agentMsg, alignSelf: "flex-start", fontStyle: "italic", opacity: 0.7 }}>
+          <div
+            style={{
+              ...styles.agentMsg,
+              alignSelf: "flex-start",
+              fontStyle: "italic",
+              opacity: 0.7,
+              backgroundColor: isDarkMode ? "#333" : styles.agentMsg.backgroundColor,
+              color: isDarkMode ? "#eee" : styles.agentMsg.color,
+            }}
+          >
             Kasongo is typing...
           </div>
         )}
       </div>
-      <div style={{ ...styles.inputContainer, borderTopColor: isDarkMode ? "#444" : "#ccc" }}>
+      <div
+        style={{
+          ...styles.inputContainer,
+          borderTopColor: isDarkMode ? "#444" : "#ccc",
+        }}
+      >
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -91,7 +138,8 @@ function Chat({ backendUrl, isDarkMode }) {
           onClick={send}
           style={{
             ...styles.sendButton,
-            backgroundColor: isDarkMode ? "#4caf50" : "#000",
+            backgroundColor: isDarkMode ? "#fff" : "#000",
+            color: isDarkMode ? "#000" : "#fff",
             cursor: loading ? "not-allowed" : "pointer",
             opacity: loading ? 0.6 : 1,
           }}
@@ -108,24 +156,39 @@ export default function App() {
   const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
   const [isDarkMode, setIsDarkMode] = useState(false);
 
-  // Toggle mode handler
   const toggleDarkMode = () => setIsDarkMode((d) => !d);
 
   return (
     <div
       style={{
         ...styles.appContainer,
-        backgroundImage: `url(${isDarkMode ? bgImageUrlDark : bgImageUrlLight})`,
+        backgroundImage: `url(${bgImageUrlLight})`, // background image fixed
         color: isDarkMode ? "#eee" : "#333",
       }}
     >
-      <div style={{ ...styles.overlay, backgroundColor: isDarkMode ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.2)" }} />
-      <header style={{ ...styles.header, backgroundColor: isDarkMode ? "rgba(20,20,20,0.8)" : "rgba(255,255,255,0.6)", color: isDarkMode ? "#eee" : "#333" }}>
+      <div
+        style={{
+          ...styles.overlay,
+          backgroundColor: isDarkMode ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.2)",
+        }}
+      />
+      <header style={styles.header}>
         <img src={logoUrl} alt="Kasongo Logo" style={styles.logo} />
+      </header>
+      <main style={styles.main}>
+        <Chat backendUrl={backendUrl} isDarkMode={isDarkMode} />
+      </main>
+      <footer
+        style={{
+          ...styles.footer,
+          backgroundColor: isDarkMode ? "rgba(20,20,20,0.8)" : "rgba(255,255,255,0.6)",
+          color: isDarkMode ? "#bbb" : "#555",
+          position: "relative",
+        }}
+      >
         <button
           onClick={toggleDarkMode}
           style={{
-            marginLeft: 20,
             padding: "6px 12px",
             borderRadius: 20,
             border: "none",
@@ -133,17 +196,16 @@ export default function App() {
             backgroundColor: isDarkMode ? "#555" : "#ddd",
             color: isDarkMode ? "#eee" : "#333",
             fontWeight: "bold",
+            position: "absolute",
+            left: 12,
+            bottom: 12,
+            userSelect: "none",
           }}
           aria-label="Toggle light/dark mode"
           title="Toggle light/dark mode"
         >
           {isDarkMode ? "Light Mode" : "Dark Mode"}
         </button>
-      </header>
-      <main style={styles.main}>
-        <Chat backendUrl={backendUrl} isDarkMode={isDarkMode} />
-      </main>
-      <footer style={{ ...styles.footer, backgroundColor: isDarkMode ? "rgba(20,20,20,0.8)" : "rgba(255,255,255,0.6)", color: isDarkMode ? "#bbb" : "#555" }}>
         powered by BMDigital
       </footer>
     </div>
@@ -174,6 +236,7 @@ const styles = {
     zIndex: 1,
     padding: "20px 0",
     textAlign: "center",
+    backgroundColor: "rgba(255,255,255,0.6)", // fixed white translucent
     boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
     display: "flex",
     justifyContent: "center",
@@ -193,6 +256,7 @@ const styles = {
     padding: 20,
   },
   chatContainer: {
+    backgroundColor: "rgba(255,255,255,0.4)", // fixed translucent background
     borderRadius: 12,
     boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
     border: "1px solid #ffffff",
@@ -258,10 +322,8 @@ const styles = {
   sendButton: {
     backgroundColor: "#000000",
     border: "none",
-    color: "white",
     padding: "10px 24px",
     borderRadius: 24,
-    cursor: "pointer",
     fontWeight: "bold",
     fontSize: 16,
     userSelect: "none",
