@@ -341,7 +341,7 @@ const styles = {
     position: "relative",
     zIndex: 1,
     textAlign: "center",
-    padding: "24px 6px",
+    padding: "16px 8px",
     fontSize: 14,
     boxShadow: "0 -2px 8px rgba(0,0,0,0.1)",
   },
