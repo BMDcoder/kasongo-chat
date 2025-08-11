@@ -269,7 +269,7 @@ const styles = {
   chatContainer: {
     borderRadius: 12,
     boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
-    width: "98%",
+    width: "100%",
     maxWidth: 900,
     display: "flex",
     flexDirection: "column",
