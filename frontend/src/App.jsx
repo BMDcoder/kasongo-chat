@@ -146,7 +146,7 @@ function Chat({ backendUrl, isDarkMode }) {
           }}
           disabled={loading}
         >
-          {loading ? "Sending..." : "Send"}
+          {loading ? "Sent" : "Send"}
         </button>
       </div>
     </div>
