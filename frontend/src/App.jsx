@@ -11,14 +11,32 @@ function Chat({ backendUrl, isDarkMode }) {
   const [input, setInput] = useState("");
   const [log, setLog] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [typingDots, setTypingDots] = useState("");
 
-  // Stream message in chunks with dynamic delay
-  const streamChunks = async (fullMessage) => {
-    const chunkSize = 40;
-    for (let i = 0; i < fullMessage.length; i += chunkSize) {
-      const chunk = fullMessage.slice(i, i + chunkSize);
-      setLog((l) => [...l, { role: "agent", content: chunk }]);
-      const delay = Math.min(Math.max(chunk.length * 25, 300), 1200);
+  // Animate typing dots
+  useEffect(() => {
+    if (!loading) {
+      setTypingDots("");
+      return;
+    }
+    const interval = setInterval(() => {
+      setTypingDots((prev) => (prev.length < 3 ? prev + "." : ""));
+    }, 500);
+    return () => clearInterval(interval);
+  }, [loading]);
+
+  // Split message into chunks using punctuation
+  const splitMessage = (text) => {
+    const regex = /[^.!?]+[.!?]?/g;
+    return text.match(regex) || [text];
+  };
+
+  // Stream chunks with dynamic delay
+  const streamChunks = async (message) => {
+    const chunks = splitMessage(message);
+    for (const chunk of chunks) {
+      setLog((l) => [...l, { role: "agent", content: chunk.trim() }]);
+      const delay = Math.min(Math.max(chunk.length * 40, 300), 1500);
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
   };
@@ -27,19 +45,18 @@ function Chat({ backendUrl, isDarkMode }) {
     if (!input.trim() || loading) return;
     setLoading(true);
 
-    const messageToSend = input;
-    setLog((l) => [...l, { role: "user", content: messageToSend }]);
+    const userMessage = input;
+    setLog((l) => [...l, { role: "user", content: userMessage }]);
     setInput("");
 
     try {
       const res = await fetch(`${backendUrl}/api/chats`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, agent_id: agentId, message: messageToSend }),
+        body: JSON.stringify({ username, agent_id: agentId, message: userMessage }),
       });
       if (!res.ok) throw new Error(`Status ${res.status}`);
       const data = await res.json();
-
       await streamChunks(data.response);
     } catch (e) {
       setLog((l) => [...l, { role: "error", content: "Failed to send message." }]);
@@ -57,9 +74,7 @@ function Chat({ backendUrl, isDarkMode }) {
   };
 
   useEffect(() => {
-    if (chatLogRef.current) {
-      chatLogRef.current.scrollTop = chatLogRef.current.scrollHeight;
-    }
+    if (chatLogRef.current) chatLogRef.current.scrollTop = chatLogRef.current.scrollHeight;
   }, [log, loading]);
 
   return (
@@ -72,12 +87,7 @@ function Chat({ backendUrl, isDarkMode }) {
     >
       <div style={styles.chatLog} ref={chatLogRef}>
         {log.length === 0 && (
-          <div
-            style={{
-              ...styles.placeholder,
-              color: isDarkMode ? "#ccc" : "#000",
-            }}
-          >
+          <div style={{ ...styles.placeholder, color: isDarkMode ? "#ccc" : "#000" }}>
             Hey, Let's talk business!, Biashara ni mazungumzo.
           </div>
         )}
@@ -125,34 +135,39 @@ function Chat({ backendUrl, isDarkMode }) {
               ...styles.agentMsg,
               alignSelf: "flex-start",
               fontStyle: "italic",
-              opacity: 0.7,
+              opacity: 0.8,
+              display: "flex",
+              gap: 4,
               backgroundColor: isDarkMode ? "#333" : styles.agentMsg.backgroundColor,
               color: isDarkMode ? "#eee" : styles.agentMsg.color,
             }}
           >
-            Kasongo is typing...
+            <span>Kasongo</span>
+            <span>{typingDots}</span>
           </div>
         )}
       </div>
 
+      {/* Floating input box */}
       <div
         style={{
-          ...styles.inputContainer,
-          borderTopColor: isDarkMode ? "#444" : "#ccc",
+          ...styles.floatingInputContainer,
+          backgroundColor: isDarkMode ? "#222" : "#fff",
+          borderColor: isDarkMode ? "#555" : "#ccc",
         }}
       >
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder="How can I help you today..."
+          placeholder="Type a message..."
           style={{
-            ...styles.textarea,
-            backgroundColor: isDarkMode ? "#333" : "#fff",
+            ...styles.floatingTextarea,
+            backgroundColor: isDarkMode ? "#333" : "#f9f9f9",
             color: isDarkMode ? "#fff" : "#000",
             borderColor: isDarkMode ? "#555" : "#ccc",
           }}
-          rows={2}
+          rows={1}
           disabled={loading}
         />
         <button
@@ -166,7 +181,7 @@ function Chat({ backendUrl, isDarkMode }) {
           }}
           disabled={loading}
         >
-          {loading ? "Sent" : "Send"}
+          Send
         </button>
       </div>
     </div>
@@ -295,6 +310,8 @@ const styles = {
     flexDirection: "column",
     height: "70vh",
     minHeight: 400,
+    position: "relative",
+    paddingBottom: 60, // space for floating input
   },
   chatLog: {
     flex: 1,
@@ -331,18 +348,23 @@ const styles = {
     backgroundColor: "#f8d7da",
     color: "#842029",
   },
-  inputContainer: {
-    padding: 10,
-    borderTop: "1px solid #ccc",
+  floatingInputContainer: {
+    position: "absolute",
+    bottom: 10,
+    left: 10,
+    right: 10,
     display: "flex",
-    alignItems: "center",
     gap: 10,
+    padding: 10,
+    borderRadius: 30,
+    border: "1px solid #ccc",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
   },
-  textarea: {
+  floatingTextarea: {
     flex: 1,
     resize: "none",
     padding: "10px 20px",
-    borderRadius: 40,
+    borderRadius: 30,
     border: "1px solid #ccc",
     fontSize: 16,
     fontFamily: "inherit",
