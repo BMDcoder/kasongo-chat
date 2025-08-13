@@ -7,7 +7,6 @@ from sqlmodel import Session, select
 from models import User
 from routes.auth import router as auth_router
 from routes.admin_agents import router as agent_router
-from routes.chat import router as chat_router
 from routes.chats import router as chats_router
 from contextlib import asynccontextmanager
 
@@ -38,5 +37,4 @@ app.add_middleware(
 
 app.include_router(auth_router, prefix="/api/admin")
 app.include_router(agent_router, prefix="/api/admin")
-app.include_router(chat_router, prefix="/api")
 app.include_router(chats_router, prefix="/api")
