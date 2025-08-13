@@ -10,14 +10,14 @@ import pandas as pd
 
 router = APIRouter(tags=["chat"])
 
-# ===== 1️⃣ Initialize Cohere client (once) =====
+# ===== 1️⃣ Initialize Cohere V2 client =====
 co = cohere.ClientV2(COHERE_API_KEY) if COHERE_API_KEY else None
 
-# ===== 2️⃣ Initialize RAG retriever at startup =====
+# ===== 2️⃣ Load and initialize RAG retriever once =====
 def load_rag_retriever():
-    # Load documents from multiple sources
-    data_csv = pd.read_csv("data/documents.csv")   # Columns: id, text
-    data_json = pd.read_json("data/more_documents.json")  # Columns: id, text
+    # Load documents from CSV/JSON
+    data_csv = pd.read_csv("data/documents.csv")          # your CSV file
+    data_json = pd.read_json("data/more_documents.json")  # optional additional docs
     all_data = pd.concat([data_csv, data_json], ignore_index=True)
 
     # Chunk long documents
@@ -31,7 +31,9 @@ def load_rag_retriever():
             all_chunks.append({"id": row.get("id", idx), "text": chunk})
 
     # Initialize Cohere RAG retriever
-    retriever = cohere.v2.rag.RagRetriever(
+    from cohere.rag import RagRetriever  # ✅ correct import
+    retriever = RagRetriever(
+        client=co,                 # V2 client
         data_source=all_chunks,
         embedding_model="large",
         text_column="text",
@@ -39,12 +41,10 @@ def load_rag_retriever():
     )
     return retriever
 
-# Load retriever once
+# Initialize once at startup
 rag_retriever = load_rag_retriever()
 
-
-# ===== FastAPI endpoints =====
-
+# ===== GET /chats endpoint =====
 @router.get("/chats")
 def get_chats(username: str = Query(...), session: Session = Depends(get_session)):
     user = session.exec(select(User).where(User.username == username)).first()
@@ -62,7 +62,7 @@ def get_chats(username: str = Query(...), session: Session = Depends(get_session
         })
     return result
 
-
+# ===== POST /chats endpoint =====
 @router.post("/chats")
 def create_chat(payload: ChatIn, session: Session = Depends(get_session)):
     # 1️⃣ Find or create user
