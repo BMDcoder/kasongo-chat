@@ -162,7 +162,7 @@ function Chat({ backendUrl, isDarkMode }) {
             borderRadius: 40,
             border: "1px solid #ccc",
             padding: "10px 20px",
-            fontSize: 12,
+            fontSize: 14,
             backgroundColor: isDarkMode ? "#333" : "#fff",
             color: isDarkMode ? "#eee" : "#000",
             maxWidth: "100%", // ensure textarea fits container
