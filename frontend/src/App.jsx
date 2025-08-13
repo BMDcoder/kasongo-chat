@@ -1,9 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
 
-const logoUrl = "https://i.postimg.cc/8ktYQrWd/kasongo.png";
-const bgImageUrlLight =
-  "https://i.postimg.cc/sg19XnLg/kasongo-03.png?auto=format&fit=crop&w=1470&q=80";
-
 function Chat({ backendUrl, isDarkMode }) {
   const chatLogRef = useRef(null);
   const [agentId] = useState(1);
@@ -12,49 +8,47 @@ function Chat({ backendUrl, isDarkMode }) {
   const [log, setLog] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Scroll chat to bottom on new messages or loading change
-  useEffect(() => {
-    if (chatLogRef.current) {
-      chatLogRef.current.scrollTop = chatLogRef.current.scrollHeight;
+  // Helper: simulate streaming chunks with delay
+  const streamChunks = async (fullMessage) => {
+    const chunkSize = 40; // characters per chunk
+    for (let i = 0; i < fullMessage.length; i += chunkSize) {
+      const chunk = fullMessage.slice(i, i + chunkSize);
+      setLog((l) => [...l, { role: "agent", content: chunk }]);
+      
+      // Dynamic delay: longer chunks take slightly more time
+      const delay = Math.min(Math.max(chunk.length * 25, 300), 1200);
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
-  }, [log, loading]);
+  };
 
-  // Send message to backend API
   const send = async () => {
     if (!input.trim() || loading) return;
     setLoading(true);
-    const body = { username, agent_id: agentId, message: input };
+
+    const messageToSend = input;
+    setLog((l) => [...l, { role: "user", content: messageToSend }]);
+    setInput("");
+
     try {
       const res = await fetch(`${backendUrl}/api/chats`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ username, agent_id: agentId, message: messageToSend }),
       });
+
       if (!res.ok) throw new Error(`Status ${res.status}`);
       const data = await res.json();
 
-      // Add user message
-      setLog((l) => [...l, { role: "user", content: input }]);
-      setInput("");
-
-      // Split agent response by sentences and display sequentially
-      const chunks = data.response
-        .split(/(?<=[.!?])\s+/)
-        .filter(Boolean);
-
-      for (let i = 0; i < chunks.length; i++) {
-        await new Promise((r) => setTimeout(r, i === 0 ? 300 : 600));
-        setLog((l) => [...l, { role: "agent", content: chunks[i] }]);
-      }
-    } catch (error) {
+      // Stream response in chunks
+      await streamChunks(data.response);
+    } catch (e) {
       setLog((l) => [...l, { role: "error", content: "Failed to send message." }]);
-      console.error("Chat request failed:", error);
+      console.error("Chat request failed:", e);
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle Enter key (send) with Shift+Enter for new line
   const onKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -62,344 +56,165 @@ function Chat({ backendUrl, isDarkMode }) {
     }
   };
 
-  // Get latest user message for header display
-  const latestUserMsg = [...log].reverse().find((m) => m.role === "user")?.content || "Let's talk business!";
-  const headerTitle = latestUserMsg.length > 40 ? latestUserMsg.slice(0, 37) + "..." : latestUserMsg;
+  useEffect(() => {
+    if (chatLogRef.current) {
+      chatLogRef.current.scrollTop = chatLogRef.current.scrollHeight;
+    }
+  }, [log, loading]);
 
   return (
     <div
       style={{
-        ...styles.chatContainer,
-        backgroundColor: isDarkMode ? "rgba(10,10,10,0.75)" : "rgba(255,255,255,0.75)",
-        border: isDarkMode ? "1px solid #111" : "1px solid #ddd",
-        color: isDarkMode ? "#eee" : "#111",
+        borderRadius: 12,
+        boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
+        width: "100%",
+        maxWidth: 900,
         display: "flex",
         flexDirection: "column",
         height: "70vh",
-        maxWidth: 900,
-        borderRadius: 16,
-        boxShadow: "0 8px 32px rgba(0,0,0,0.15)",
-        overflow: "hidden",
+        minHeight: 400,
+        backgroundColor: isDarkMode ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.4)",
+        border: isDarkMode ? "1px solid #000" : "1px solid #fff",
       }}
     >
-      {/* Chat Header */}
       <div
-        style={{
-          backgroundColor: isDarkMode ? "#16213e" : "#2563eb",
-          color: "white",
-          padding: "12px 20px",
-          fontWeight: "600",
-          fontSize: 18,
-          display: "flex",
-          alignItems: "center",
-          gap: 16,
-          userSelect: "none",
-        }}
-      >
-        <img
-          src={logoUrl}
-          alt="Kasongo Logo"
-          style={{ height: 30, objectFit: "contain", filter: isDarkMode ? "brightness(0) invert(1)" : "none" }}
-        />
-        <div
-          title={latestUserMsg}
-          style={{
-            flex: 1,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            fontStyle: "italic",
-          }}
-        >
-          {headerTitle}
-        </div>
-      </div>
-
-      {/* Chat Messages */}
-      <div
-        ref={chatLogRef}
         style={{
           flex: 1,
           overflowY: "auto",
           padding: 20,
+          fontSize: 16,
           display: "flex",
           flexDirection: "column",
-          gap: 12,
-          background: isDarkMode ? "rgba(0,0,0,0.5)" : "rgba(240, 248, 255, 0.8)",
-          backdropFilter: "blur(10px)",
+          gap: 10,
         }}
+        ref={chatLogRef}
       >
         {log.length === 0 && (
           <div
             style={{
               fontStyle: "italic",
-              fontSize: 22,
               textAlign: "center",
-              marginTop: 60,
-              color: isDarkMode ? "#aaa" : "#444",
+              marginTop: 50,
+              fontSize: 24,
+              color: isDarkMode ? "#ccc" : "#000",
             }}
           >
             Hey, Let's talk business!, Biashara ni mazungumzo.
           </div>
         )}
-        {log.map((msg, idx) => {
-          const isUser = msg.role === "user";
-          const isAgent = msg.role === "agent";
-          const isError = msg.role === "error";
-          return (
-            <div
-              key={idx}
-              style={{
-                alignSelf: isUser ? "flex-end" : isAgent ? "flex-start" : "center",
-                backgroundColor: isUser
+
+        {log.map((m, i) => (
+          <div
+            key={i}
+            style={{
+              padding: 12,
+              borderRadius: 20,
+              maxWidth: "70%",
+              wordWrap: "break-word",
+              whiteSpace: "pre-wrap",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+              alignSelf: m.role === "user" ? "flex-end" : m.role === "agent" ? "flex-start" : "center",
+              backgroundColor:
+                m.role === "user"
                   ? isDarkMode
-                    ? "#1e3a8a"
-                    : "#3b82f6"
-                  : isAgent
+                    ? "#3a634a"
+                    : "#d1e7dd"
+                  : m.role === "agent"
                   ? isDarkMode
-                    ? "#1f2937"
-                    : "#e2e8f0"
+                    ? "#333"
+                    : "#f8f9fa"
                   : isDarkMode
-                  ? "#6b2121"
-                  : "#f87171",
-                color: isUser ? "#dbeafe" : isAgent ? (isDarkMode ? "#d1d5db" : "#1f2937") : "#fee2e2",
-                padding: "14px 20px",
-                borderRadius: 20,
-                maxWidth: "75%",
-                fontSize: 16,
-                lineHeight: 1.5,
-                whiteSpace: "pre-wrap",
-                boxShadow: "0 2px 8px rgb(0 0 0 / 0.12)",
-                userSelect: "text",
-              }}
-            >
-              {msg.content}
-            </div>
-          );
-        })}
+                  ? "#722f37"
+                  : "#f8d7da",
+              color:
+                m.role === "user"
+                  ? isDarkMode
+                    ? "#d1e7dd"
+                    : "#0f5132"
+                  : m.role === "agent"
+                  ? isDarkMode
+                    ? "#eee"
+                    : "#212529"
+                  : isDarkMode
+                  ? "#f1b0b7"
+                  : "#842029",
+            }}
+          >
+            {m.content}
+          </div>
+        ))}
+
         {loading && (
           <div
             style={{
               alignSelf: "flex-start",
               fontStyle: "italic",
-              opacity: 0.75,
-              color: isDarkMode ? "#cbd5e1" : "#374151",
-              paddingLeft: 10,
-              userSelect: "none",
+              opacity: 0.7,
+              backgroundColor: isDarkMode ? "#333" : "#f8f9fa",
+              color: isDarkMode ? "#eee" : "#212529",
+              padding: 12,
+              borderRadius: 20,
+              maxWidth: "70%",
+              wordWrap: "break-word",
+              whiteSpace: "pre-wrap",
             }}
           >
-            Kasongo is typing<span style={{ animation: "blink 1.5s step-start 0s infinite" }}>...</span>
+            Kasongo is typing...
           </div>
         )}
       </div>
 
-      {/* Input Area */}
       <div
         style={{
-          borderTop: `1px solid ${isDarkMode ? "#333" : "#ddd"}`,
-          backgroundColor: isDarkMode ? "#0f172a" : "#f9fafb",
-          padding: 16,
+          padding: 10,
+          borderTop: "1px solid",
+          borderTopColor: isDarkMode ? "#444" : "#ccc",
           display: "flex",
-          gap: 10,
           alignItems: "center",
-          position: "sticky",
-          bottom: 0,
-          zIndex: 10,
+          gap: 10,
         }}
       >
         <textarea
-          rows={2}
-          placeholder="How can I help you today..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={onKeyDown}
-          disabled={loading}
+          placeholder="How can I help you today..."
           style={{
             flex: 1,
-            padding: "12px 16px",
-            borderRadius: 24,
-            border: `1px solid ${isDarkMode ? "#334155" : "#cbd5e1"}`,
-            backgroundColor: isDarkMode ? "#1e293b" : "white",
-            color: isDarkMode ? "white" : "#111827",
-            fontSize: 16,
             resize: "none",
-            outline: "none",
+            padding: "10px 20px",
+            borderRadius: 40,
+            border: "1px solid",
+            borderColor: isDarkMode ? "#555" : "#ccc",
+            fontSize: 16,
             fontFamily: "inherit",
-            boxShadow: "0 1px 3px rgb(0 0 0 / 0.1)",
-            transition: "border-color 0.3s",
+            minHeight: 40,
+            backgroundColor: isDarkMode ? "#333" : "#fff",
+            color: isDarkMode ? "#fff" : "#000",
           }}
-          onFocus={(e) => (e.target.style.borderColor = "#2563eb")}
-          onBlur={(e) => (e.target.style.borderColor = isDarkMode ? "#334155" : "#cbd5e1")}
+          rows={2}
+          disabled={loading}
         />
         <button
           onClick={send}
           disabled={loading}
           style={{
-            backgroundColor: isDarkMode ? "#2563eb" : "#1e40af",
-            color: "white",
-            fontWeight: "600",
-            fontSize: 16,
-            padding: "12px 24px",
-            borderRadius: 24,
+            backgroundColor: isDarkMode ? "#fff" : "#000",
+            color: isDarkMode ? "#000" : "#fff",
             border: "none",
+            padding: "10px 24px",
+            borderRadius: 24,
+            fontWeight: "bold",
+            fontSize: 16,
             cursor: loading ? "not-allowed" : "pointer",
             opacity: loading ? 0.6 : 1,
-            boxShadow: "0 4px 10px rgb(37 99 235 / 0.5)",
-            userSelect: "none",
-            transition: "background-color 0.3s",
           }}
-          onMouseEnter={(e) => !loading && (e.currentTarget.style.backgroundColor = "#1e40af")}
-          onMouseLeave={(e) => !loading && (e.currentTarget.style.backgroundColor = isDarkMode ? "#2563eb" : "#1e40af")}
         >
-          {loading ? "Sending..." : "Send"}
+          {loading ? "Sent" : "Send"}
         </button>
       </div>
     </div>
   );
 }
 
-export default function App() {
-  const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
-  const [isDarkMode, setIsDarkMode] = useState(false);
-
-  const toggleDarkMode = () => setIsDarkMode((d) => !d);
-
-  return (
-    <div
-      style={{
-        position: "relative",
-        minHeight: "100vh",
-        fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-        backgroundImage: `url(${bgImageUrlLight})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        color: isDarkMode ? "#e0e7ff" : "#1e293b",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      {/* Background Overlay */}
-      <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          backdropFilter: "blur(8px)",
-          backgroundColor: isDarkMode ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.3)",
-          zIndex: 0,
-        }}
-      />
-      {/* Header */}
-      <header
-        style={{
-          position: "relative",
-          zIndex: 1,
-          padding: "24px 0",
-          textAlign: "center",
-          backgroundColor: isDarkMode ? "rgba(22, 25, 35, 0.85)" : "rgba(37, 99, 235, 0.85)",
-          boxShadow: isDarkMode
-            ? "0 4px 10px rgba(0,0,0,0.6)"
-            : "0 4px 12px rgba(37, 99, 235, 0.4)",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          gap: 12,
-          userSelect: "none",
-          fontWeight: "700",
-          fontSize: 22,
-          color: "white",
-          letterSpacing: 1,
-          textShadow: "0 0 6px rgba(0,0,0,0.2)",
-          cursor: "default",
-          zIndex: 2,
-        }}
-      >
-        <img
-          src={logoUrl}
-          alt="Kasongo Logo"
-          style={{ height: 44, objectFit: "contain" }}
-        />
-        Kasongo Chat
-      </header>
-
-      {/* Main Chat */}
-      <main
-        style={{
-          flex: 1,
-          position: "relative",
-          zIndex: 1,
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          padding: 12,
-        }}
-      >
-        <Chat backendUrl={backendUrl} isDarkMode={isDarkMode} />
-      </main>
-
-      {/* Footer */}
-      <footer
-        style={{
-          position: "relative",
-          zIndex: 1,
-          padding: "16px 8px",
-          fontSize: 14,
-          textAlign: "center",
-          backgroundColor: isDarkMode ? "rgba(22, 25, 35, 0.8)" : "rgba(255,255,255,0.85)",
-          color: isDarkMode ? "#94a3b8" : "#444",
-          userSelect: "none",
-          boxShadow: "0 -4px 10px rgba(0,0,0,0.1)",
-        }}
-      >
-        <button
-          onClick={toggleDarkMode}
-          style={{
-            padding: "6px 14px",
-            borderRadius: 24,
-            border: "none",
-            cursor: "pointer",
-            backgroundColor: isDarkMode ? "#475569" : "#e2e8f0",
-            color: isDarkMode ? "#cbd5e1" : "#1e293b",
-            fontWeight: "600",
-            marginBottom: 8,
-            userSelect: "none",
-            transition: "background-color 0.3s",
-          }}
-          aria-label="Toggle light/dark mode"
-          title="Toggle light/dark mode"
-          onMouseEnter={(e) =>
-            (e.currentTarget.style.backgroundColor = isDarkMode ? "#64748b" : "#cbd5e1")
-          }
-          onMouseLeave={(e) =>
-            (e.currentTarget.style.backgroundColor = isDarkMode ? "#475569" : "#e2e8f0")
-          }
-        >
-          {isDarkMode ? "Light Mode" : "Dark Mode"}
-        </button>
-        <div>
-          powered by{" "}
-          <a
-            href="https://bmdigital.netlify.app"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: isDarkMode ? "#94a3b8" : "#444", textDecoration: "underline" }}
-          >
-            BMDigital
-          </a>
-        </div>
-      </footer>
-
-      <style>{`
-        @keyframes blink {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0; }
-        }
-      `}</style>
-    </div>
-  );
-}
-
-const styles = {
-  chatContainer: {
-    boxSizing: "border-box",
-  },
-};
+export default Chat;
