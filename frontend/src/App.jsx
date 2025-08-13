@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 
 const logoUrl = "https://i.postimg.cc/8ktYQrWd/kasongo.png";
-const bgImageUrlLight = "https://i.postimg.cc/sg19XnLg/kasongo-03.png?auto=format&fit=crop&w=1470&q=80";
+const bgImageUrlLight =
+  "https://i.postimg.cc/sg19XnLg/kasongo-03.png?auto=format&fit=crop&w=1470&q=80";
 
 function Chat({ backendUrl, isDarkMode }) {
   const chatLogRef = useRef(null);
@@ -11,14 +12,14 @@ function Chat({ backendUrl, isDarkMode }) {
   const [log, setLog] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Scroll to bottom on new messages or loading change
+  // Scroll chat to bottom on new messages or loading change
   useEffect(() => {
     if (chatLogRef.current) {
       chatLogRef.current.scrollTop = chatLogRef.current.scrollHeight;
     }
   }, [log, loading]);
 
-  // Send message to backend
+  // Send message to backend API
   const send = async () => {
     if (!input.trim() || loading) return;
     setLoading(true);
@@ -32,27 +33,28 @@ function Chat({ backendUrl, isDarkMode }) {
       if (!res.ok) throw new Error(`Status ${res.status}`);
       const data = await res.json();
 
-      // Chunk agent response by sentence for better UX
+      // Add user message
+      setLog((l) => [...l, { role: "user", content: input }]);
+      setInput("");
+
+      // Split agent response by sentences and display sequentially
       const chunks = data.response
         .split(/(?<=[.!?])\s+/)
         .filter(Boolean);
 
-      setLog((l) => [...l, { role: "user", content: input }]);
-      setInput("");
-
-      // Add chunks sequentially with delay
       for (let i = 0; i < chunks.length; i++) {
         await new Promise((r) => setTimeout(r, i === 0 ? 300 : 600));
         setLog((l) => [...l, { role: "agent", content: chunks[i] }]);
       }
-    } catch (e) {
+    } catch (error) {
       setLog((l) => [...l, { role: "error", content: "Failed to send message." }]);
-      console.error("Chat request failed:", e);
+      console.error("Chat request failed:", error);
     } finally {
       setLoading(false);
     }
   };
 
+  // Handle Enter key (send) with Shift+Enter for new line
   const onKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -60,12 +62,9 @@ function Chat({ backendUrl, isDarkMode }) {
     }
   };
 
-  // Extract latest user message for header display
-  const latestUserMsg = [...log].reverse().find((m) => m.role === "user")?.content || "Let’s talk business!";
-
-  // Truncate header message to ~40 chars
-  const headerTitle =
-    latestUserMsg.length > 40 ? latestUserMsg.slice(0, 37) + "..." : latestUserMsg;
+  // Get latest user message for header display
+  const latestUserMsg = [...log].reverse().find((m) => m.role === "user")?.content || "Let's talk business!";
+  const headerTitle = latestUserMsg.length > 40 ? latestUserMsg.slice(0, 37) + "..." : latestUserMsg;
 
   return (
     <div
@@ -94,6 +93,7 @@ function Chat({ backendUrl, isDarkMode }) {
           display: "flex",
           alignItems: "center",
           gap: 16,
+          userSelect: "none",
         }}
       >
         <img
@@ -193,7 +193,7 @@ function Chat({ backendUrl, isDarkMode }) {
         )}
       </div>
 
-      {/* Input */}
+      {/* Input Area */}
       <div
         style={{
           borderTop: `1px solid ${isDarkMode ? "#333" : "#ddd"}`,
@@ -278,6 +278,7 @@ export default function App() {
         flexDirection: "column",
       }}
     >
+      {/* Background Overlay */}
       <div
         style={{
           position: "fixed",
@@ -287,6 +288,7 @@ export default function App() {
           zIndex: 0,
         }}
       />
+      {/* Header */}
       <header
         style={{
           position: "relative",
@@ -318,6 +320,8 @@ export default function App() {
         />
         Kasongo Chat
       </header>
+
+      {/* Main Chat */}
       <main
         style={{
           flex: 1,
@@ -331,6 +335,8 @@ export default function App() {
       >
         <Chat backendUrl={backendUrl} isDarkMode={isDarkMode} />
       </main>
+
+      {/* Footer */}
       <footer
         style={{
           position: "relative",
@@ -381,6 +387,7 @@ export default function App() {
           </a>
         </div>
       </footer>
+
       <style>{`
         @keyframes blink {
           0%, 100% { opacity: 1; }
@@ -390,3 +397,9 @@ export default function App() {
     </div>
   );
 }
+
+const styles = {
+  chatContainer: {
+    boxSizing: "border-box",
+  },
+};
