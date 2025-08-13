@@ -20,17 +20,18 @@ if not COHERE_API_KEY:
     raise RuntimeError("Missing COHERE_API_KEY environment variable")
 
 router = APIRouter(tags=["chat"])
-cohere_client = cohere.ClientV2(COHERE_API_KEY) if COHERE_API_KEY else None
+cohere_client = cohere.ClientV2(COHERE_API_KEY)
 
 # ====== Helper Functions ======
 def should_use_gdrive_connector(message: str) -> bool:
-    """Determine if Google Drive connector should be used based on keywords"""
+    """Determine if Google Drive connector should be used based on keywords."""
     keywords = {"google drive", "gdrive", "my files", "spreadsheet", "doc", "pdf", "document"}
     msg_lower = message.lower()
     return any(keyword in msg_lower for keyword in keywords)
 
+
 def parse_gdrive_service_account() -> dict | None:
-    """Parse Google Drive service account JSON"""
+    """Parse Google Drive service account JSON."""
     if not GDRIVE_SERVICE_ACCOUNT_INFO:
         return None
     try:
@@ -39,16 +40,13 @@ def parse_gdrive_service_account() -> dict | None:
         logger.error(f"Invalid GDRIVE_SERVICE_ACCOUNT_JSON: {str(e)}")
         return None
 
+
 def get_cohere_response(
     user_message: str,
     system_prompt: str,
     connectors: list[dict] | None = None
 ) -> str:
-    """Get response from Cohere API with error handling"""
-    if not cohere_client:
-        logger.warning("Cohere client not initialized - running in mock mode")
-        return f"Mock response to: {user_message}"
-    
+    """Get response from Cohere API with optional RAG connectors."""
     try:
         response = cohere_client.chat(
             model="command-r-plus",
@@ -66,6 +64,7 @@ def get_cohere_response(
         logger.exception("Unexpected error in Cohere API call")
         return "Sorry, I'm having trouble responding right now."
 
+
 # ====== Database Services ======
 class ChatService:
     @staticmethod
@@ -73,10 +72,9 @@ class ChatService:
         user = session.exec(select(User).where(User.username == username)).first()
         if user:
             return user
-        
         new_user = User(
             username=username,
-            password_hash=get_password_hash("temppw")  # Temporary password for demo
+            password_hash=get_password_hash("temppw")  # Temporary password
         )
         session.add(new_user)
         session.commit()
@@ -92,17 +90,8 @@ class ChatService:
         return new_chat
 
     @staticmethod
-    def save_message(
-        session: Session,
-        chat_id: int,
-        role: str,
-        content: str
-    ) -> Message:
-        new_message = Message(
-            chat_id=chat_id,
-            role=role,
-            content=content
-        )
+    def save_message(session: Session, chat_id: int, role: str, content: str) -> Message:
+        new_message = Message(chat_id=chat_id, role=role, content=content)
         session.add(new_message)
         session.commit()
         session.refresh(new_message)
@@ -113,27 +102,27 @@ class ChatService:
         user = session.exec(select(User).where(User.username == username)).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
-        
         chats = session.exec(select(Chat).where(Chat.user_id == user.id)).all()
         results = []
-        
         for chat in chats:
             messages = session.exec(
                 select(Message)
                 .where(Message.chat_id == chat.id)
                 .order_by(Message.created_at)
             ).all()
-            
             results.append({
                 "chat_id": chat.id,
                 "agent_id": chat.agent_id,
-                "messages": [{
-                    "role": msg.role,
-                    "content": msg.content,
-                    "timestamp": msg.created_at.isoformat()
-                } for msg in messages]
+                "messages": [
+                    {
+                        "role": msg.role,
+                        "content": msg.content,
+                        "timestamp": msg.created_at.isoformat()
+                    } for msg in messages
+                ]
             })
         return results
+
 
 # ====== API Endpoints ======
 @router.get("/chats", response_model=list[dict])
@@ -141,46 +130,44 @@ def get_chats(
     username: str = Query(..., description="Username to retrieve chats for"),
     session: Session = Depends(get_session)
 ):
-    """Retrieve all chat history for a user"""
+    """Retrieve all chat history for a user."""
     return ChatService.get_user_chats(session, username)
 
+
 @router.post("/chats", response_model=dict)
-def create_chat(
-    payload: ChatIn,
-    session: Session = Depends(get_session)
-) -> dict:
-    """Process chat message with RAG capabilities using Cohere and Google Drive"""
-    # User handling
+def create_chat(payload: ChatIn, session: Session = Depends(get_session)) -> dict:
+    """Process chat message with RAG capabilities using Cohere and Google Drive."""
+    # 1️⃣ User handling
     user = ChatService.get_or_create_user(session, payload.username)
-    
-    # Agent validation
+
+    # 2️⃣ Agent validation
     agent = session.get(Agent, payload.agent_id)
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
-    
-    # Create chat record
+
+    # 3️⃣ Create chat record
     chat = ChatService.create_chat(session, user.id, agent.id)
-    
-    # Save user message
+
+    # 4️⃣ Save user message
     ChatService.save_message(session, chat.id, "user", payload.message)
-    
-    # Prepare connectors
+
+    # 5️⃣ Decide if Google Drive connector should be used
     connectors = []
-    if (should_use_gdrive_connector(payload.message) and GDRIVE_CONNECTOR_ID:
+    if should_use_gdrive_connector(payload.message) and GDRIVE_CONNECTOR_ID:
         connectors.append({"id": GDRIVE_CONNECTOR_ID})
         logger.info(f"Using Google Drive connector for chat {chat.id}")
 
-    # Get AI response
+    # 6️⃣ Get AI response from Cohere
     system_prompt = agent.system_prompt or "You are a helpful assistant."
     ai_response = get_cohere_response(
         user_message=payload.message,
         system_prompt=system_prompt,
         connectors=connectors if connectors else None
     )
-    
-    # Save AI response
+
+    # 7️⃣ Save AI response
     ChatService.save_message(session, chat.id, "agent", ai_response)
-    
+
     return {
         "chat_id": chat.id,
         "response": ai_response,
