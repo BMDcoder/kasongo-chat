@@ -251,7 +251,7 @@ const styles = {
     left: 0,
     right: 0,
     bottom: 0,
-    backdropFilter: "blur(8px)",
+    backdropFilter: "blur(20px)",
     zIndex: 0,
   },
   header: {
