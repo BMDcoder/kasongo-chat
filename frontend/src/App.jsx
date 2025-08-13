@@ -1,187 +1,190 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
-export default function ChatPage() {
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState("");
-  const messagesEndRef = useRef(null);
+export default function App() {
+  const [summary, setSummary] = useState("Welcome to the chat");
+  const [blocks, setBlocks] = useState([]);
+  const [skip, setSkip] = useState(false);
+  const scrollRef = useRef(null);
+  const timersRef = useRef([]);
 
-  // Scroll to latest
+  const API_URL = "http://localhost:8000";
+
+  // Fetch previous chat history on mount
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  // Handle sending message (unchanged backend action)
-  const sendMessage = async () => {
-    if (!input.trim()) return;
-    const userMessage = { role: "user", content: input };
-    setMessages((prev) => [...prev, userMessage]);
-
-    setInput("");
-
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: input }),
+    fetch(`${API_URL}/history`)
+      .then((res) => res.json())
+      .then((data) => {
+        const botMessages = data
+          .filter((m) => m.role === "bot")
+          .map((m) => m.text);
+        setBlocks(botMessages);
       });
-      const data = await res.json();
-      if (data.reply) {
-        // chunk answer into sentences
-        const chunks = data.reply
-          .split(/(?<=[.!?])\s+/)
-          .map((chunk) => chunk.trim())
-          .filter((chunk) => chunk);
-        chunks.forEach((chunk, i) => {
-          setTimeout(() => {
-            setMessages((prev) => [
-              ...prev,
-              { role: "assistant", content: chunk },
-            ]);
-          }, i * 800); // delay between chunks
+  }, []);
+
+  // Display bot chunks with delay
+  const showBlocks = (chunks) => {
+    setBlocks([]);
+    setSkip(false);
+    timersRef.current.forEach(clearTimeout);
+    timersRef.current = [];
+
+    chunks.forEach((text, i) => {
+      const timer = setTimeout(() => {
+        setBlocks((prev) => [...prev, text]);
+        scrollRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, i * 1500);
+      timersRef.current.push(timer);
+    });
+  };
+
+  // Send message to backend
+  const handleSend = async (msg) => {
+    setSummary(msg);
+    const res = await fetch(`${API_URL}/send`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role: "user", text: msg }),
+    });
+    const data = await res.json();
+    showBlocks(data.chunks);
+  };
+
+  // Tap anywhere to skip chunk pacing
+  const handleSkip = () => {
+    if (!skip) {
+      setSkip(true);
+      timersRef.current.forEach(clearTimeout);
+      fetch(`${API_URL}/history`)
+        .then((res) => res.json())
+        .then((data) => {
+          const botMessages = data
+            .filter((m) => m.role === "bot")
+            .map((m) => m.text);
+          setBlocks(botMessages);
+          scrollRef.current?.scrollIntoView({ behavior: "smooth" });
         });
-      }
-    } catch (err) {
-      console.error(err);
     }
   };
 
-  // Extract last user question for header summary
-  const latestUserQuestion =
-    [...messages]
-      .reverse()
-      .find((m) => m.role === "user")?.content || "Ask me anything";
+  // ===== UI Components inside the same file =====
 
-  const shortHeaderTitle =
-    latestUserQuestion.length > 40
-      ? latestUserQuestion.slice(0, 37) + "..."
-      : latestUserQuestion;
-
-  return (
-    <div
+  const Header = ({ summary }) => (
+    <header
       style={{
-        height: "100vh",
         display: "flex",
-        flexDirection: "column",
-        fontFamily: "Arial, sans-serif",
-        backgroundColor: "#f9f9f9",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "10px 20px",
+        borderBottom: "1px solid #ddd",
+        background: "#fff",
+        position: "sticky",
+        top: 0,
+        zIndex: 1000,
       }}
     >
-      {/* Header */}
-      <div
-        style={{
-          backgroundColor: "#1e293b",
-          color: "white",
-          padding: "12px 16px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          position: "sticky",
-          top: 0,
-          zIndex: 2,
-        }}
-      >
-        <div style={{ fontWeight: "bold", fontSize: "16px" }}>MyLogo</div>
-        <div
-          style={{
-            fontSize: "14px",
-            fontStyle: "italic",
-            textAlign: "center",
-            flex: 1,
-            padding: "0 10px",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
-          {shortHeaderTitle}
-        </div>
-      </div>
-
-      {/* Messages */}
-      <div
-        style={{
-          flex: 1,
-          overflowY: "auto",
-          padding: "10px 16px",
-          marginBottom: "70px", // leave space for footer
-        }}
-      >
-        {messages.map((msg, i) => (
-          <div
-            key={i}
-            style={{
-              display: "flex",
-              justifyContent: msg.role === "user" ? "flex-end" : "flex-start",
-              marginBottom: "8px",
-            }}
+      <div style={{ fontWeight: "bold" }}>🤖 Logo</div>
+      <div style={{ flex: 1, textAlign: "center", fontSize: "14px" }}>
+        <AnimatePresence mode="wait">
+          <motion.span
+            key={summary}
+            initial={{ opacity: 0, y: -5 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 5 }}
+            transition={{ duration: 0.3 }}
           >
-            <div
-              style={{
-                backgroundColor:
-                  msg.role === "user" ? "#3b82f6" : "#e2e8f0",
-                color: msg.role === "user" ? "white" : "#111827",
-                padding: "8px 12px",
-                borderRadius: "10px",
-                maxWidth: "75%",
-                boxShadow:
-                  "0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06)",
-                fontSize: "14px",
-                lineHeight: "1.4",
-                whiteSpace: "pre-wrap",
-              }}
-            >
-              {msg.content}
-            </div>
-          </div>
-        ))}
-        <div ref={messagesEndRef} />
+            {summary}
+          </motion.span>
+        </AnimatePresence>
       </div>
+      <div style={{ width: "40px" }} />
+    </header>
+  );
 
-      {/* Footer Input */}
+  const ChatBlock = ({ text, delay }) => (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay, duration: 0.4 }}
+      style={{
+        background: "#f9f9f9",
+        margin: "10px",
+        padding: "15px",
+        borderRadius: "12px",
+        fontSize: "15px",
+        lineHeight: "1.4",
+      }}
+    >
+      {text}
+    </motion.div>
+  );
+
+  const Footer = ({ onSend }) => {
+    const [value, setValue] = useState("");
+    const handleClick = () => {
+      if (value.trim()) {
+        onSend(value);
+        setValue("");
+      }
+    };
+    return (
       <div
         style={{
-          position: "fixed",
+          position: "sticky",
           bottom: 0,
-          left: 0,
-          right: 0,
-          backgroundColor: "#ffffff",
-          padding: "10px 16px",
-          borderTop: "1px solid #e5e7eb",
+          background: "#fff",
+          padding: "10px",
           display: "flex",
-          alignItems: "center",
           gap: "8px",
+          borderTop: "1px solid #ddd",
         }}
       >
         <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
           placeholder="Type your message..."
           style={{
             flex: 1,
-            padding: "8px 12px",
-            borderRadius: "8px",
-            border: "1px solid #d1d5db",
-            outline: "none",
-            fontSize: "14px",
+            padding: "10px",
+            borderRadius: "20px",
+            border: "1px solid #ccc",
           }}
         />
         <button
-          onClick={sendMessage}
+          onClick={handleClick}
           style={{
-            backgroundColor: "#3b82f6",
-            color: "white",
+            padding: "10px 15px",
+            background: "#007bff",
+            color: "#fff",
             border: "none",
-            borderRadius: "8px",
-            padding: "8px 14px",
+            borderRadius: "20px",
             cursor: "pointer",
-            fontSize: "14px",
           }}
         >
           Send
         </button>
       </div>
+    );
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+      <Header summary={summary} />
+      <div
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          padding: "10px",
+          background: "#f0f2f5",
+        }}
+        onClick={handleSkip}
+      >
+        {blocks.map((b, i) => (
+          <ChatBlock key={i} text={b} delay={0.1} />
+        ))}
+        <div ref={scrollRef} />
+      </div>
+      <Footer onSend={handleSend} />
     </div>
   );
 }
