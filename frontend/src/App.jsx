@@ -147,6 +147,8 @@ function Chat({ backendUrl, isDarkMode }) {
           padding: 10,
           borderRadius: 40,
           boxShadow: "0 4px 10px rgba(0,0,0,0.15)",
+          maxWidth: 900, // <-- added max width
+          margin: "0 auto", // center horizontally
         }}
       >
         <textarea
@@ -163,6 +165,7 @@ function Chat({ backendUrl, isDarkMode }) {
             fontSize: 16,
             backgroundColor: isDarkMode ? "#333" : "#fff",
             color: isDarkMode ? "#eee" : "#000",
+            maxWidth: "100%", // ensure textarea fits container
           }}
           rows={1}
           disabled={loading}
