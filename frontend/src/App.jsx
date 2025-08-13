@@ -1,164 +1,187 @@
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<title>Chunked Chatbot UI with Smooth Scroll</title>
-<style>
-  body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-    background: #f9fafa;
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    overflow: hidden;
-  }
-  /* Header */
-  .header {
-    background: #fff;
-    border-bottom: 1px solid #ddd;
-    padding: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .logo {
-    font-weight: bold;
-    color: #0077cc;
-  }
-  .title {
-    flex: 1;
-    text-align: center;
-    font-size: 14px;
-    font-weight: bold;
-    animation: fadeIn 0.4s ease;
-  }
-  /* Scrollable content container */
-  .scroll-container {
-    flex: 1;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column-reverse; /* Latest at bottom */
-    scroll-behavior: smooth;
-    padding: 10px;
-    gap: 10px;
-  }
-  .block {
-    background: #fff;
-    padding: 15px;
-    border-radius: 8px;
-    box-shadow: 0px 2px 6px rgba(0,0,0,0.1);
-    width: 85%;
-    max-width: 500px;
-    align-self: center;
-    animation: slideUp 0.5s ease;
-  }
-  .highlight {
-    background: #d0ebff;
-    padding: 2px 4px;
-    border-radius: 4px;
-  }
-  /* Footer */
-  .footer {
-    background: #fff;
-    border-top: 1px solid #ddd;
-    padding: 10px;
-  }
-  .quick-actions {
-    display: flex;
-    gap: 6px;
-    margin-bottom: 8px;
-  }
-  .quick-btn {
-    background: #f1f3f5;
-    border: none;
-    padding: 5px 10px;
-    border-radius: 20px;
-    cursor: pointer;
-    font-size: 12px;
-  }
-  .input-area {
-    display: flex;
-    gap: 8px;
-  }
-  .input-area input {
-    flex: 1;
-    padding: 8px;
-    border-radius: 20px;
-    border: 1px solid #ccc;
-  }
-  .input-area button {
-    background: #0077cc;
-    border: none;
-    color: white;
-    padding: 8px 14px;
-    border-radius: 20px;
-    cursor: pointer;
-  }
-  /* Animations */
-  @keyframes slideUp {
-    from { transform: translateY(30px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
-  }
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-</style>
-</head>
-<body>
+import React, { useState, useEffect, useRef } from "react";
 
-<!-- Header -->
-<div class="header">
-  <div class="logo">🤖 MyBot</div>
-  <div class="title" id="header-title">Simple Quantum Computing</div>
-  <div style="width:40px;"></div>
-</div>
+export default function ChatPage() {
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
+  const messagesEndRef = useRef(null);
 
-<!-- Scrollable Content -->
-<div class="scroll-container" id="scroll-container"></div>
+  // Scroll to latest
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
-<!-- Footer -->
-<div class="footer">
-  <div class="quick-actions">
-    <button class="quick-btn">Explain in more detail</button>
-    <button class="quick-btn">Give real-world example</button>
-    <button class="quick-btn">Show diagram</button>
-  </div>
-  <div class="input-area">
-    <input type="text" placeholder="Ask me something..." />
-    <button>Send</button>
-  </div>
-</div>
+  // Handle sending message (unchanged backend action)
+  const sendMessage = async () => {
+    if (!input.trim()) return;
+    const userMessage = { role: "user", content: input };
+    setMessages((prev) => [...prev, userMessage]);
 
-<script>
-  const blocks = [
-    "Quantum computing uses quantum bits, or <span class='highlight'>qubits</span>, instead of regular bits. Qubits can represent both 0 and 1 at the same time thanks to <span class='highlight'>superposition</span>.",
-    "This lets quantum computers solve certain problems much faster than normal computers.",
-    "Tip: <span class='highlight'>Superposition</span> means a particle can be in multiple states at once."
-  ];
+    setInput("");
 
-  let index = 0;
-  const container = document.getElementById("scroll-container");
-
-  function showNextBlock() {
-    if (index < blocks.length) {
-      const block = document.createElement("div");
-      block.className = "block";
-      block.innerHTML = blocks[index];
-      container.prepend(block); // Add to bottom visually (since flex-direction is reverse)
-      index++;
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: input }),
+      });
+      const data = await res.json();
+      if (data.reply) {
+        // chunk answer into sentences
+        const chunks = data.reply
+          .split(/(?<=[.!?])\s+/)
+          .map((chunk) => chunk.trim())
+          .filter((chunk) => chunk);
+        chunks.forEach((chunk, i) => {
+          setTimeout(() => {
+            setMessages((prev) => [
+              ...prev,
+              { role: "assistant", content: chunk },
+            ]);
+          }, i * 800); // delay between chunks
+        });
+      }
+    } catch (err) {
+      console.error(err);
     }
-  }
+  };
 
-  // Auto progress every 3 seconds, allow click to skip
-  showNextBlock();
-  let timer = setInterval(showNextBlock, 3000);
-  container.addEventListener("click", () => {
-    clearInterval(timer);
-    showNextBlock();
-  });
-</script>
+  // Extract last user question for header summary
+  const latestUserQuestion =
+    [...messages]
+      .reverse()
+      .find((m) => m.role === "user")?.content || "Ask me anything";
 
-</body>
-</html>
+  const shortHeaderTitle =
+    latestUserQuestion.length > 40
+      ? latestUserQuestion.slice(0, 37) + "..."
+      : latestUserQuestion;
+
+  return (
+    <div
+      style={{
+        height: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        fontFamily: "Arial, sans-serif",
+        backgroundColor: "#f9f9f9",
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          backgroundColor: "#1e293b",
+          color: "white",
+          padding: "12px 16px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          position: "sticky",
+          top: 0,
+          zIndex: 2,
+        }}
+      >
+        <div style={{ fontWeight: "bold", fontSize: "16px" }}>MyLogo</div>
+        <div
+          style={{
+            fontSize: "14px",
+            fontStyle: "italic",
+            textAlign: "center",
+            flex: 1,
+            padding: "0 10px",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {shortHeaderTitle}
+        </div>
+      </div>
+
+      {/* Messages */}
+      <div
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          padding: "10px 16px",
+          marginBottom: "70px", // leave space for footer
+        }}
+      >
+        {messages.map((msg, i) => (
+          <div
+            key={i}
+            style={{
+              display: "flex",
+              justifyContent: msg.role === "user" ? "flex-end" : "flex-start",
+              marginBottom: "8px",
+            }}
+          >
+            <div
+              style={{
+                backgroundColor:
+                  msg.role === "user" ? "#3b82f6" : "#e2e8f0",
+                color: msg.role === "user" ? "white" : "#111827",
+                padding: "8px 12px",
+                borderRadius: "10px",
+                maxWidth: "75%",
+                boxShadow:
+                  "0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06)",
+                fontSize: "14px",
+                lineHeight: "1.4",
+                whiteSpace: "pre-wrap",
+              }}
+            >
+              {msg.content}
+            </div>
+          </div>
+        ))}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Footer Input */}
+      <div
+        style={{
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          backgroundColor: "#ffffff",
+          padding: "10px 16px",
+          borderTop: "1px solid #e5e7eb",
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+        }}
+      >
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+          placeholder="Type your message..."
+          style={{
+            flex: 1,
+            padding: "8px 12px",
+            borderRadius: "8px",
+            border: "1px solid #d1d5db",
+            outline: "none",
+            fontSize: "14px",
+          }}
+        />
+        <button
+          onClick={sendMessage}
+          style={{
+            backgroundColor: "#3b82f6",
+            color: "white",
+            border: "none",
+            borderRadius: "8px",
+            padding: "8px 14px",
+            cursor: "pointer",
+            fontSize: "14px",
+          }}
+        >
+          Send
+        </button>
+      </div>
+    </div>
+  );
+}
