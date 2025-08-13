@@ -6,17 +6,12 @@ const bgImageUrlLight =
 
 // Split message into chunks using punctuation, combine 3 splits per chunk
 function splitMessageIntoChunks(message) {
-  // Normalize line breaks and trim spaces
   const cleanMessage = message.replace(/\n+/g, " ").trim();
-
-  // Match sentences ending with one or more punctuation marks (.!?), keep punctuation
   const splits = cleanMessage.match(/[^.!?]+[.!?]+/g)?.map(s => s.trim()) || [];
-
   const chunks = [];
   for (let i = 0; i < splits.length; i += 3) {
     chunks.push(splits.slice(i, i + 3).join(" ").trim());
   }
-
   return chunks;
 }
 
@@ -38,7 +33,7 @@ function Chat({ backendUrl, isDarkMode }) {
     if (!input.trim() || loading) return;
     setLoading(true);
     const userMessage = input;
-    setLog((l) => [...l, { role: "user", content: userMessage }]);
+    setLog(l => [...l, { role: "user", content: userMessage }]);
     setInput("");
 
     try {
@@ -50,24 +45,23 @@ function Chat({ backendUrl, isDarkMode }) {
 
       if (!res.ok) throw new Error(`Status ${res.status}`);
       const data = await res.json();
-
       const agentChunks = splitMessageIntoChunks(data.response);
       setTyping(true);
 
       for (let chunk of agentChunks) {
-        await new Promise((resolve) => setTimeout(resolve, getRandomDelay()));
-        setLog((l) => [...l, { role: "agent", content: chunk }]);
+        await new Promise(resolve => setTimeout(resolve, getRandomDelay()));
+        setLog(l => [...l, { role: "agent", content: chunk }]);
       }
     } catch (e) {
       console.error(e);
-      setLog((l) => [...l, { role: "error", content: "Failed to send message." }]);
+      setLog(l => [...l, { role: "error", content: "Failed to send message." }]);
     } finally {
       setLoading(false);
       setTyping(false);
     }
   };
 
-  const onKeyDown = (e) => {
+  const onKeyDown = e => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       send();
@@ -82,7 +76,7 @@ function Chat({ backendUrl, isDarkMode }) {
 
   return (
     <div style={styles.chatContainer}>
-      <div style={{ ...styles.chatLog, paddingBottom: 80 }} ref={chatLogRef}>
+      <div className="chatLog" style={{ ...styles.chatLog, paddingBottom: 80 }} ref={chatLogRef}>
         {log.length === 0 && (
           <div style={{ ...styles.placeholder, color: isDarkMode ? "#ccc" : "#000" }}>
             Hey, Let's talk business!, Biashara ni mazungumzo.
@@ -153,13 +147,13 @@ function Chat({ backendUrl, isDarkMode }) {
           padding: 10,
           borderRadius: 40,
           boxShadow: "0 4px 10px rgba(0,0,0,0.15)",
-          maxWidth: 900, // <-- added max width
-          margin: "0 auto", // center horizontally
+          maxWidth: 900,
+          margin: "0 auto",
         }}
       >
         <textarea
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={e => setInput(e.target.value)}
           onKeyDown={onKeyDown}
           placeholder="Ask Anything.."
           style={{
@@ -171,7 +165,7 @@ function Chat({ backendUrl, isDarkMode }) {
             fontSize: 16,
             backgroundColor: isDarkMode ? "#333" : "#fff",
             color: isDarkMode ? "#eee" : "#000",
-            maxWidth: "100%", // ensure textarea fits container
+            maxWidth: "100%",
           }}
           rows={1}
           disabled={loading}
@@ -200,11 +194,22 @@ export default function App() {
   const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
   const [isDarkMode, setIsDarkMode] = useState(false);
 
-  const toggleDarkMode = () => setIsDarkMode((d) => !d);
+  const toggleDarkMode = () => setIsDarkMode(d => !d);
 
   return (
-    <div style={{ ...styles.appContainer, backgroundImage: `url(${bgImageUrlLight})`, color: isDarkMode ? "#eee" : "#333" }}>
-      <div style={{ ...styles.overlay, backgroundColor: isDarkMode ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.2)" }} />
+    <div
+      style={{
+        ...styles.appContainer,
+        backgroundImage: `url(${bgImageUrlLight})`,
+        color: isDarkMode ? "#eee" : "#333",
+      }}
+    >
+      <div
+        style={{
+          ...styles.overlay,
+          backgroundColor: isDarkMode ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.2)",
+        }}
+      />
       <header style={styles.header}>
         <img src={logoUrl} alt="Kasongo Logo" style={styles.logo} />
       </header>
@@ -232,7 +237,12 @@ export default function App() {
         </button>
         <div>
           powered by{" "}
-          <a href="https://bmdigital.netlify.app" target="_blank" rel="noopener noreferrer" style={{ color: "#555", textDecoration: "underline" }}>
+          <a
+            href="https://bmdigital.netlify.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "#555", textDecoration: "underline" }}
+          >
             BMDigital
           </a>
         </div>
@@ -274,8 +284,19 @@ const styles = {
   logo: { height: 40, objectFit: "contain" },
   main: { flex: 1, position: "relative", zIndex: 1, display: "flex", justifyContent: "center", alignItems: "center", padding: 5 },
   chatContainer: { borderRadius: 12, width: "100%", maxWidth: 900, display: "flex", flexDirection: "column", height: "70vh", minHeight: 400 },
-  chatLog: { flex: 1, overflowY: "auto", padding: 20, fontSize: 16, display: "flex", flexDirection: "column", gap: 10 },
-  placeholder: { fontWeight:"bold", fontStyle: "italic", textAlign: "center", marginTop: 16, fontSize: 30 },
+  chatLog: {
+    flex: 1,
+    overflowY: "auto",
+    padding: 20,
+    fontSize: 16,
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+    scrollbarWidth: "none", // Firefox
+    msOverflowStyle: "none", // IE 10+
+    position: "relative",
+  },
+  placeholder: { fontWeight: "bold", fontStyle: "italic", textAlign: "center", marginTop: 16, fontSize: 30 },
   message: { padding: 12, borderRadius: 20, maxWidth: "70%", wordWrap: "break-word", whiteSpace: "pre-wrap", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" },
   userMsg: { backgroundColor: "#d1e7dd", color: "#0f5132" },
   agentMsg: { backgroundColor: "#f8f9fa", color: "#212529" },
@@ -283,3 +304,20 @@ const styles = {
   typingDot: { width: 8, height: 8, borderRadius: "50%", backgroundColor: "#999", animation: "blink 1s infinite" },
   footer: { position: "relative", zIndex: 1, textAlign: "center", padding: "16px 8px", fontSize: 14 },
 };
+
+/* ---------- CSS for scroll indicator (keep at the end) ---------- */
+const style = document.createElement("style");
+style.innerHTML = `
+.chatLog::-webkit-scrollbar { display: none; } /* Chrome/Safari */
+.chatLog:hover::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 2px;
+  width: 4px;
+  height: 100%;
+  background: rgba(0,0,0,0.2);
+  border-radius: 2px;
+}
+`;
+document.head.appendChild(style);
