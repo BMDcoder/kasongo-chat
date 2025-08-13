@@ -4,6 +4,21 @@ const logoUrl = "https://i.postimg.cc/8ktYQrWd/kasongo.png";
 const bgImageUrlLight =
   "https://i.postimg.cc/sg19XnLg/kasongo-03.png?auto=format&fit=crop&w=1470&q=80";
 
+// Helper: split message into chunks using punctuation and combine 3 splits per chunk
+function splitMessageIntoChunks(message) {
+  const splits = message.split(/([.?!])/).filter(Boolean); // keep punctuation
+  const chunks = [];
+  for (let i = 0; i < splits.length; i += 3) {
+    chunks.push(splits.slice(i, i + 3).join("").trim());
+  }
+  return chunks;
+}
+
+// Helper: random delay for human-like typing
+function getRandomDelay() {
+  return 300 + Math.random() * 700; // 300ms to 1000ms
+}
+
 function Chat({ backendUrl, isDarkMode }) {
   const chatLogRef = useRef(null);
   const [agentId] = useState(1);
@@ -11,47 +26,11 @@ function Chat({ backendUrl, isDarkMode }) {
   const [input, setInput] = useState("");
   const [log, setLog] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [typingDots, setTypingDots] = useState("");
-
-  // Animate typing dots
-  useEffect(() => {
-    if (!loading) {
-      setTypingDots("");
-      return;
-    }
-    const interval = setInterval(() => {
-      setTypingDots((prev) => (prev.length < 3 ? prev + "." : ""));
-    }, 500);
-    return () => clearInterval(interval);
-  }, [loading]);
-
- // Split text by punctuation but combine every 3 pieces
-const splitMessage = (text) => {
-  const regex = /[^.!?]+[.!?]?/g;
-  const parts = text.match(regex) || [text];
-
-  const combinedChunks = [];
-  for (let i = 0; i < parts.length; i += 3) {
-    const chunk = parts.slice(i, i + 3).join(" ").trim();
-    if (chunk) combinedChunks.push(chunk);
-  }
-  return combinedChunks;
-};
-
-// Streaming chunks with dynamic delay
-const streamChunks = async (message) => {
-  const chunks = splitMessage(message);
-  for (const chunk of chunks) {
-    setLog((l) => [...l, { role: "agent", content: chunk }]);
-    const delay = Math.min(Math.max(chunk.length * 40, 300), 2000); // dynamic delay
-    await new Promise((resolve) => setTimeout(resolve, delay));
-  }
-};
+  const [typing, setTyping] = useState(false);
 
   const send = async () => {
     if (!input.trim() || loading) return;
     setLoading(true);
-
     const userMessage = input;
     setLog((l) => [...l, { role: "user", content: userMessage }]);
     setInput("");
@@ -62,14 +41,24 @@ const streamChunks = async (message) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, agent_id: agentId, message: userMessage }),
       });
+
       if (!res.ok) throw new Error(`Status ${res.status}`);
       const data = await res.json();
-      await streamChunks(data.response);
+
+      const agentChunks = splitMessageIntoChunks(data.response);
+      setTyping(true);
+
+      for (let chunk of agentChunks) {
+        await new Promise((resolve) => setTimeout(resolve, getRandomDelay()));
+        setLog((l) => [...l, { role: "agent", content: chunk }]);
+      }
+
     } catch (e) {
+      console.error(e);
       setLog((l) => [...l, { role: "error", content: "Failed to send message." }]);
-      console.error("Chat request failed:", e);
     } finally {
       setLoading(false);
+      setTyping(false);
     }
   };
 
@@ -81,8 +70,10 @@ const streamChunks = async (message) => {
   };
 
   useEffect(() => {
-    if (chatLogRef.current) chatLogRef.current.scrollTop = chatLogRef.current.scrollHeight;
-  }, [log, loading]);
+    if (chatLogRef.current) {
+      chatLogRef.current.scrollTop = chatLogRef.current.scrollHeight;
+    }
+  }, [log, typing]);
 
   return (
     <div
@@ -90,9 +81,19 @@ const streamChunks = async (message) => {
         ...styles.chatContainer,
         backgroundColor: isDarkMode ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.4)",
         border: isDarkMode ? "1px solid #000" : "1px solid #fff",
+        position: "relative",
+        display: "flex",
+        flexDirection: "column",
       }}
     >
-      <div style={styles.chatLog} ref={chatLogRef}>
+      <div
+        style={{
+          ...styles.chatLog,
+          overflowY: "auto",
+          paddingBottom: 80, // space for floating input
+        }}
+        ref={chatLogRef}
+      >
         {log.length === 0 && (
           <div style={{ ...styles.placeholder, color: isDarkMode ? "#ccc" : "#000" }}>
             Hey, Let's talk business!, Biashara ni mazungumzo.
@@ -104,53 +105,48 @@ const streamChunks = async (message) => {
             key={i}
             style={{
               ...styles.message,
-              alignSelf:
-                m.role === "user" ? "flex-end" : m.role === "agent" ? "flex-start" : "center",
-              backgroundColor:
-                m.role === "user"
-                  ? isDarkMode
-                    ? "#3a634a"
-                    : styles.userMsg.backgroundColor
-                  : m.role === "agent"
-                  ? isDarkMode
-                    ? "#333"
-                    : styles.agentMsg.backgroundColor
-                  : isDarkMode
-                  ? "#722f37"
-                  : styles.errorMsg.backgroundColor,
-              color:
-                m.role === "user"
-                  ? isDarkMode
-                    ? "#d1e7dd"
-                    : styles.userMsg.color
-                  : m.role === "agent"
-                  ? isDarkMode
-                    ? "#eee"
-                    : styles.agentMsg.color
-                  : isDarkMode
-                  ? "#f1b0b7"
-                  : styles.errorMsg.color,
+              ...(m.role === "user"
+                ? {
+                    ...styles.userMsg,
+                    alignSelf: "flex-end",
+                    backgroundColor: isDarkMode ? "#3a634a" : styles.userMsg.backgroundColor,
+                    color: isDarkMode ? "#d1e7dd" : styles.userMsg.color,
+                  }
+                : m.role === "agent"
+                ? {
+                    ...styles.agentMsg,
+                    alignSelf: "flex-start",
+                    backgroundColor: isDarkMode ? "#333" : styles.agentMsg.backgroundColor,
+                    color: isDarkMode ? "#eee" : styles.agentMsg.color,
+                  }
+                : {
+                    ...styles.errorMsg,
+                    alignSelf: "center",
+                    backgroundColor: isDarkMode ? "#722f37" : styles.errorMsg.backgroundColor,
+                    color: isDarkMode ? "#f1b0b7" : styles.errorMsg.color,
+                  }),
             }}
           >
             {m.content}
           </div>
         ))}
 
-        {loading && (
+        {typing && (
           <div
             style={{
               ...styles.agentMsg,
               alignSelf: "flex-start",
               fontStyle: "italic",
-              opacity: 0.8,
               display: "flex",
               gap: 4,
+              padding: "6px 12px",
+              borderRadius: 20,
               backgroundColor: isDarkMode ? "#333" : styles.agentMsg.backgroundColor,
-              color: isDarkMode ? "#eee" : styles.agentMsg.color,
             }}
           >
-            <span>Kasongo</span>
-            <span>{typingDots}</span>
+            <span style={styles.typingDot}></span>
+            <span style={styles.typingDot}></span>
+            <span style={styles.typingDot}></span>
           </div>
         )}
       </div>
@@ -158,21 +154,32 @@ const streamChunks = async (message) => {
       {/* Floating input box */}
       <div
         style={{
-          ...styles.floatingInputContainer,
+          position: "absolute",
+          bottom: 10,
+          left: 10,
+          right: 10,
+          display: "flex",
+          gap: 10,
           backgroundColor: isDarkMode ? "#222" : "#fff",
-          borderColor: isDarkMode ? "#555" : "#ccc",
+          padding: 10,
+          borderRadius: 40,
+          boxShadow: "0 4px 10px rgba(0,0,0,0.15)",
         }}
       >
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder="Type a message..."
+          placeholder="How can I help you today..."
           style={{
-            ...styles.floatingTextarea,
-            backgroundColor: isDarkMode ? "#333" : "#f9f9f9",
-            color: isDarkMode ? "#fff" : "#000",
-            borderColor: isDarkMode ? "#555" : "#ccc",
+            flex: 1,
+            resize: "none",
+            borderRadius: 40,
+            border: "1px solid #ccc",
+            padding: "10px 20px",
+            fontSize: 16,
+            backgroundColor: isDarkMode ? "#333" : "#fff",
+            color: isDarkMode ? "#eee" : "#000",
           }}
           rows={1}
           disabled={loading}
@@ -180,10 +187,12 @@ const streamChunks = async (message) => {
         <button
           onClick={send}
           style={{
-            ...styles.sendButton,
+            padding: "10px 24px",
+            borderRadius: 24,
+            border: "none",
             backgroundColor: isDarkMode ? "#fff" : "#000",
             color: isDarkMode ? "#000" : "#fff",
-            cursor: loading ? "not-allowed" : "pointer",
+            cursor: "pointer",
             opacity: loading ? 0.6 : 1,
           }}
           disabled={loading}
@@ -317,8 +326,6 @@ const styles = {
     flexDirection: "column",
     height: "70vh",
     minHeight: 400,
-    position: "relative",
-    paddingBottom: 60, // space for floating input
   },
   chatLog: {
     flex: 1,
@@ -355,23 +362,18 @@ const styles = {
     backgroundColor: "#f8d7da",
     color: "#842029",
   },
-  floatingInputContainer: {
-    position: "absolute",
-    bottom: 10,
-    left: 10,
-    right: 10,
-    display: "flex",
-    gap: 10,
+  inputContainer: {
     padding: 10,
-    borderRadius: 30,
-    border: "1px solid #ccc",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+    borderTop: "1px solid #ccc",
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
   },
-  floatingTextarea: {
+  textarea: {
     flex: 1,
     resize: "none",
     padding: "10px 20px",
-    borderRadius: 30,
+    borderRadius: 40,
     border: "1px solid #ccc",
     fontSize: 16,
     fontFamily: "inherit",
@@ -393,5 +395,12 @@ const styles = {
     padding: "16px 8px",
     fontSize: 14,
     boxShadow: "0 -2px 8px rgba(0,0,0,0.1)",
+  },
+  typingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: "50%",
+    backgroundColor: "#999",
+    animation: "blink 1s infinite",
   },
 };
