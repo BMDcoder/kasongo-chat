@@ -5,43 +5,60 @@ from schemas import ChatIn
 from database import get_session
 from auth import get_password_hash
 from config import COHERE_API_KEY
-import cohere
 import pandas as pd
+import os
+import glob
+
+# LangChain imports
+from langchain_cohere import CohereRagRetriever
+from langchain.embeddings import CohereEmbeddings
+from langchain.chat_models import ChatCohere
 
 router = APIRouter(tags=["chat"])
 
-# ===== 1️⃣ Initialize Cohere V2 client =====
-co = cohere.ClientV2(COHERE_API_KEY) if COHERE_API_KEY else None
+# ===== 1️⃣ Initialize Cohere embeddings and chat model =====
+embeddings = CohereEmbeddings(cohere_api_key=COHERE_API_KEY)
+chat_model = ChatCohere(cohere_api_key=COHERE_API_KEY)
 
-# ===== 2️⃣ Load and initialize RAG retriever once =====
-def load_rag_retriever():
-    # Load documents from CSV/JSON
-    data_csv = pd.read_csv("data/documents.csv")          # your CSV file
-    data_json = pd.read_json("data/more_documents.json")  # optional additional docs
-    all_data = pd.concat([data_csv, data_json], ignore_index=True)
+# ===== 2️⃣ Load all CSV/JSON documents and initialize RAG retriever =====
+def load_rag_retriever(data_folder="data"):
+    all_chunks = []
 
-    # Chunk long documents
+    # Find all CSV and JSON files in the folder
+    csv_files = glob.glob(os.path.join(data_folder, "*.csv"))
+    json_files = glob.glob(os.path.join(data_folder, "*.json"))
+
+    # Load CSV files
+    for f in csv_files:
+        df = pd.read_csv(f)
+        for idx, row in df.iterrows():
+            all_chunks.append({"id": row.get("id", idx), "text": row["text"]})
+
+    # Load JSON files
+    for f in json_files:
+        df = pd.read_json(f)
+        for idx, row in df.iterrows():
+            all_chunks.append({"id": row.get("id", idx), "text": row["text"]})
+
+    # Optional: chunk long texts into smaller pieces
     def chunk_text(text, chunk_size=500):
         words = text.split()
         return [" ".join(words[i:i+chunk_size]) for i in range(0, len(words), chunk_size)]
 
-    all_chunks = []
-    for idx, row in all_data.iterrows():
-        for chunk in chunk_text(row["text"]):
-            all_chunks.append({"id": row.get("id", idx), "text": chunk})
+    final_chunks = []
+    for doc in all_chunks:
+        for chunk in chunk_text(doc["text"]):
+            final_chunks.append({"id": doc["id"], "text": chunk})
 
-    # Initialize Cohere RAG retriever
-    from cohere.rag import RagRetriever  # ✅ correct import
-    retriever = RagRetriever(
-        client=co,                 # V2 client
-        data_source=all_chunks,
-        embedding_model="large",
-        text_column="text",
-        normalize_embeddings=True
+    # Initialize CohereRagRetriever
+    retriever = CohereRagRetriever(
+        embeddings=embeddings,
+        documents=final_chunks,
+        search_kwargs={"k": 5},  # top 5 relevant chunks
     )
+
     return retriever
 
-# Initialize once at startup
 rag_retriever = load_rag_retriever()
 
 # ===== GET /chats endpoint =====
@@ -90,8 +107,8 @@ def create_chat(payload: ChatIn, session: Session = Depends(get_session)):
     session.commit()
 
     # ===== 5️⃣ Retrieve relevant RAG context =====
-    if COHERE_API_KEY and co:
-        retrieved = rag_retriever.retrieve(payload.message, top_k=5)
+    if COHERE_API_KEY:
+        retrieved = rag_retriever.retrieve(payload.message)
         context = "\n".join([r["text"] for r in retrieved])
         prompt_message = (
             f"{agent.system_prompt or 'You are a helpful assistant.'}\n\n"
@@ -100,11 +117,8 @@ def create_chat(payload: ChatIn, session: Session = Depends(get_session)):
         )
 
         try:
-            response = co.chat(
-                model="command-a-03-2025",
-                messages=[{"role": "user", "content": prompt_message}],
-            )
-            ai_text = response.message.content[0].text
+            response = chat_model.invoke([prompt_message])
+            ai_text = response[0]['text'] if response else "No response from model"
         except Exception as e:
             ai_text = f"(Cohere API call failed) {str(e)}"
     else:
