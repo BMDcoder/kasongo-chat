@@ -6,11 +6,17 @@ const bgImageUrlLight =
 
 // Split message into chunks using punctuation, combine 3 splits per chunk
 function splitMessageIntoChunks(message) {
-  const splits = message.split(/([.?!])/).filter(Boolean); // keep punctuation
+  // Normalize line breaks and trim spaces
+  const cleanMessage = message.replace(/\n+/g, " ").trim();
+
+  // Match sentences ending with one or more punctuation marks (.!?), keep punctuation
+  const splits = cleanMessage.match(/[^.!?]+[.!?]+/g)?.map(s => s.trim()) || [];
+
   const chunks = [];
-  for (let i = 0; i < splits.length; i += 5) {
-    chunks.push(splits.slice(i, i + 5).join("").trim());
+  for (let i = 0; i < splits.length; i += 3) {
+    chunks.push(splits.slice(i, i + 3).join(" ").trim());
   }
+
   return chunks;
 }
 
