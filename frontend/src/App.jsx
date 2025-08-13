@@ -4,7 +4,7 @@ const logoUrl = "https://i.postimg.cc/8ktYQrWd/kasongo.png";
 const bgImageUrlLight =
   "https://i.postimg.cc/sg19XnLg/kasongo-03.png?auto=format&fit=crop&w=1470&q=80";
 
-// Helper: split message into chunks using punctuation and combine 3 splits per chunk
+// Split message into chunks using punctuation, combine 3 splits per chunk
 function splitMessageIntoChunks(message) {
   const splits = message.split(/([.?!])/).filter(Boolean); // keep punctuation
   const chunks = [];
@@ -14,7 +14,7 @@ function splitMessageIntoChunks(message) {
   return chunks;
 }
 
-// Helper: random delay for human-like typing
+// Random delay for human-like typing
 function getRandomDelay() {
   return 300 + Math.random() * 700; // 300ms to 1000ms
 }
@@ -52,7 +52,6 @@ function Chat({ backendUrl, isDarkMode }) {
         await new Promise((resolve) => setTimeout(resolve, getRandomDelay()));
         setLog((l) => [...l, { role: "agent", content: chunk }]);
       }
-
     } catch (e) {
       console.error(e);
       setLog((l) => [...l, { role: "error", content: "Failed to send message." }]);
@@ -76,24 +75,8 @@ function Chat({ backendUrl, isDarkMode }) {
   }, [log, typing]);
 
   return (
-    <div
-      style={{
-        ...styles.chatContainer,
-        backgroundColor: "transparent", // make container invisible
-        border: "none", // remove border
-        position: "relative",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <div
-        style={{
-          ...styles.chatLog,
-          overflowY: "auto",
-          paddingBottom: 80, // space for floating input
-        }}
-        ref={chatLogRef}
-      >
+    <div style={styles.chatContainer}>
+      <div style={{ ...styles.chatLog, paddingBottom: 80 }} ref={chatLogRef}>
         {log.length === 0 && (
           <div style={{ ...styles.placeholder, color: isDarkMode ? "#ccc" : "#000" }}>
             Hey, Let's talk business!, Biashara ni mazungumzo.
@@ -211,33 +194,15 @@ export default function App() {
   const toggleDarkMode = () => setIsDarkMode((d) => !d);
 
   return (
-    <div
-      style={{
-        ...styles.appContainer,
-        backgroundImage: `url(${bgImageUrlLight})`,
-        color: isDarkMode ? "#eee" : "#333",
-      }}
-    >
-      <div
-        style={{
-          ...styles.overlay,
-          backgroundColor: isDarkMode ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.2)",
-        }}
-      />
+    <div style={{ ...styles.appContainer, backgroundImage: `url(${bgImageUrlLight})`, color: isDarkMode ? "#eee" : "#333" }}>
+      <div style={{ ...styles.overlay, backgroundColor: isDarkMode ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.2)" }} />
       <header style={styles.header}>
         <img src={logoUrl} alt="Kasongo Logo" style={styles.logo} />
       </header>
       <main style={styles.main}>
         <Chat backendUrl={backendUrl} isDarkMode={isDarkMode} />
       </main>
-      <footer
-        style={{
-          ...styles.footer,
-          backgroundColor: "rgba(255,255,255,0.6)",
-          color: "#555",
-          position: "relative",
-        }}
-      >
+      <footer style={{ ...styles.footer, backgroundColor: "rgba(255,255,255,0.6)", color: "#555" }}>
         <button
           onClick={toggleDarkMode}
           style={{
@@ -253,19 +218,12 @@ export default function App() {
             bottom: 12,
             userSelect: "none",
           }}
-          aria-label="Toggle light/dark mode"
-          title="Toggle light/dark mode"
         >
           {isDarkMode ? "Light Mode" : "Dark Mode"}
         </button>
         <div>
           powered by{" "}
-          <a
-            href="https://bmdigital.netlify.app"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: "#555", textDecoration: "underline" }}
-          >
+          <a href="https://bmdigital.netlify.app" target="_blank" rel="noopener noreferrer" style={{ color: "#555", textDecoration: "underline" }}>
             BMDigital
           </a>
         </div>
@@ -304,103 +262,15 @@ const styles = {
     justifyContent: "center",
     alignItems: "center",
   },
-  logo: {
-    height: 40,
-    objectFit: "contain",
-  },
-  main: {
-    flex: 1,
-    position: "relative",
-    zIndex: 1,
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 5,
-  },
-  chatContainer: {
-    borderRadius: 12,
-    boxShadow: "0 0px 0px rgba(0,0,0,0.0)",
-    width: "100%",
-    maxWidth: 900,
-    display: "flex",
-    flexDirection: "column",
-    height: "70vh",
-    minHeight: 400,
-  },
-  chatLog: {
-    flex: 1,
-    overflowY: "auto",
-    padding: 20,
-    fontSize: 16,
-    display: "flex",
-    flexDirection: "column",
-    gap: 10,
-  },
-  placeholder: {
-    fontStyle: "italic",
-    textAlign: "center",
-    marginTop: 50,
-    fontSize: 24,
-  },
-  message: {
-    padding: 12,
-    borderRadius: 20,
-    maxWidth: "70%",
-    wordWrap: "break-word",
-    whiteSpace: "pre-wrap",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-  },
-  userMsg: {
-    backgroundColor: "#d1e7dd",
-    color: "#0f5132",
-  },
-  agentMsg: {
-    backgroundColor: "#f8f9fa",
-    color: "#212529",
-  },
-  errorMsg: {
-    backgroundColor: "#f8d7da",
-    color: "#842029",
-  },
-  inputContainer: {
-    padding: 10,
-    borderTop: "1px solid #ccc",
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-  },
-  textarea: {
-    flex: 1,
-    resize: "none",
-    padding: "10px 20px",
-    borderRadius: 40,
-    border: "1px solid #ccc",
-    fontSize: 16,
-    fontFamily: "inherit",
-    minHeight: 40,
-  },
-  sendButton: {
-    backgroundColor: "#000000",
-    border: "none",
-    padding: "10px 24px",
-    borderRadius: 24,
-    fontWeight: "bold",
-    fontSize: 16,
-    userSelect: "none",
-  },
-  footer: {
-    position: "relative",
-    zIndex: 1,
-    textAlign: "center",
-    padding: "16px 8px",
-    fontSize: 14,
-    boxShadow: "0 -2px 8px rgba(0,0,0,0.1)",
-  },
-  typingDot: {
-    width: 8,
-    height: 8,
-    borderRadius: "50%",
-    backgroundColor: "#999",
-    animation: "blink 1s infinite",
-  },
+  logo: { height: 40, objectFit: "contain" },
+  main: { flex: 1, position: "relative", zIndex: 1, display: "flex", justifyContent: "center", alignItems: "center", padding: 5 },
+  chatContainer: { borderRadius: 12, width: "100%", maxWidth: 900, display: "flex", flexDirection: "column", height: "70vh", minHeight: 400 },
+  chatLog: { flex: 1, overflowY: "auto", padding: 20, fontSize: 16, display: "flex", flexDirection: "column", gap: 10 },
+  placeholder: { fontStyle: "italic", textAlign: "center", marginTop: 50, fontSize: 24 },
+  message: { padding: 12, borderRadius: 20, maxWidth: "70%", wordWrap: "break-word", whiteSpace: "pre-wrap", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" },
+  userMsg: { backgroundColor: "#d1e7dd", color: "#0f5132" },
+  agentMsg: { backgroundColor: "#f8f9fa", color: "#212529" },
+  errorMsg: { backgroundColor: "#f8d7da", color: "#842029" },
+  typingDot: { width: 8, height: 8, borderRadius: "50%", backgroundColor: "#999", animation: "blink 1s infinite" },
+  footer: { position: "relative", zIndex: 1, textAlign: "center", padding: "16px 8px", fontSize: 14 },
 };
