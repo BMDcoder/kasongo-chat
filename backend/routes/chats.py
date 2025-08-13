@@ -31,7 +31,7 @@ def load_rag_retriever():
             all_chunks.append({"id": row.get("id", idx), "text": chunk})
 
     # Initialize Cohere RAG retriever
-    retriever = cohere.rag.RagRetriever(
+    retriever = cohere.v2.rag.RagRetriever(
         data_source=all_chunks,
         embedding_model="large",
         text_column="text",
