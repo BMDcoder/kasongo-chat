@@ -155,14 +155,14 @@ function Chat({ backendUrl, isDarkMode }) {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder="How can I help you today..."
+          placeholder="Ask Anything.."
           style={{
             flex: 1,
             resize: "none",
             borderRadius: 40,
             border: "1px solid #ccc",
             padding: "10px 20px",
-            fontSize: 14,
+            fontSize: 16,
             backgroundColor: isDarkMode ? "#333" : "#fff",
             color: isDarkMode ? "#eee" : "#000",
             maxWidth: "100%", // ensure textarea fits container
