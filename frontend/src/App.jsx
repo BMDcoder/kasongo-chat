@@ -269,7 +269,7 @@ const styles = {
   main: { flex: 1, position: "relative", zIndex: 1, display: "flex", justifyContent: "center", alignItems: "center", padding: 5 },
   chatContainer: { borderRadius: 12, width: "100%", maxWidth: 900, display: "flex", flexDirection: "column", height: "70vh", minHeight: 400 },
   chatLog: { flex: 1, overflowY: "auto", padding: 20, fontSize: 16, display: "flex", flexDirection: "column", gap: 10 },
-  placeholder: { fontStyle: "italic", textAlign: "center", marginTop: 50, fontSize: 24 },
+  placeholder: { fontStyle: "italic", textAlign: "center", marginTop: 25, fontSize: 30 },
   message: { padding: 12, borderRadius: 20, maxWidth: "70%", wordWrap: "break-word", whiteSpace: "pre-wrap", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" },
   userMsg: { backgroundColor: "#d1e7dd", color: "#0f5132" },
   agentMsg: { backgroundColor: "#f8f9fa", color: "#212529" },
