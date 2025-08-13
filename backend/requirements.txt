@@ -10,3 +10,7 @@ python-multipart==0.0.6
 cohere>=5.16.3
 bcrypt==4.0.1
 openai
+google-api-python-client
+google-auth
+nltk
+aiohttp
