@@ -1,0 +1,6 @@
+id,text
+1,"RAG stands for Retrieval-Augmented Generation. It allows AI models to fetch relevant documents before generating an answer."
+2,"FastAPI is a modern, fast Python web framework for building APIs with automatic documentation."
+3,"Cohere provides large language models and embeddings to create AI applications that can understand and generate text."
+4,"You can store documents in CSV, JSON, or a database and use a retriever to fetch the most relevant information."
+5,"Chunking long documents helps the AI process large texts without exceeding context limits."
