@@ -16,8 +16,8 @@ co = cohere.ClientV2(COHERE_API_KEY) if COHERE_API_KEY else None
 # ===== 2️⃣ Initialize RAG retriever at startup =====
 def load_rag_retriever():
     # Load documents from multiple sources
-    data_csv = pd.read_csv("documents.csv")   # Columns: id, text
-    data_json = pd.read_json("more_documents.json")  # Columns: id, text
+    data_csv = pd.read_csv("data/documents.csv")   # Columns: id, text
+    data_json = pd.read_json("data/more_documents.json")  # Columns: id, text
     all_data = pd.concat([data_csv, data_json], ignore_index=True)
 
     # Chunk long documents
