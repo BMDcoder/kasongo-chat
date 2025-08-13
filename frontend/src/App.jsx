@@ -8,8 +8,8 @@ const bgImageUrlLight =
 function splitMessageIntoChunks(message) {
   const splits = message.split(/([.?!])/).filter(Boolean); // keep punctuation
   const chunks = [];
-  for (let i = 0; i < splits.length; i += 3) {
-    chunks.push(splits.slice(i, i + 3).join("").trim());
+  for (let i = 0; i < splits.length; i += 5) {
+    chunks.push(splits.slice(i, i + 5).join("").trim());
   }
   return chunks;
 }
