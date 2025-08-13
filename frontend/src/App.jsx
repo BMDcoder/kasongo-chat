@@ -79,8 +79,8 @@ function Chat({ backendUrl, isDarkMode }) {
     <div
       style={{
         ...styles.chatContainer,
-        backgroundColor: isDarkMode ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.4)",
-        border: isDarkMode ? "1px solid #000" : "1px solid #fff",
+        backgroundColor: "transparent", // make container invisible
+        border: "none", // remove border
         position: "relative",
         display: "flex",
         flexDirection: "column",
