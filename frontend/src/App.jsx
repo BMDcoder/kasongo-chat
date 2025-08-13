@@ -25,21 +25,28 @@ function Chat({ backendUrl, isDarkMode }) {
     return () => clearInterval(interval);
   }, [loading]);
 
-  // Split message into chunks using punctuation
-  const splitMessage = (text) => {
-    const regex = /[^.!?]+[.!?]?/g;
-    return text.match(regex) || [text];
-  };
+ // Split text by punctuation but combine every 3 pieces
+const splitMessage = (text) => {
+  const regex = /[^.!?]+[.!?]?/g;
+  const parts = text.match(regex) || [text];
 
-  // Stream chunks with dynamic delay
-  const streamChunks = async (message) => {
-    const chunks = splitMessage(message);
-    for (const chunk of chunks) {
-      setLog((l) => [...l, { role: "agent", content: chunk.trim() }]);
-      const delay = Math.min(Math.max(chunk.length * 40, 300), 1500);
-      await new Promise((resolve) => setTimeout(resolve, delay));
-    }
-  };
+  const combinedChunks = [];
+  for (let i = 0; i < parts.length; i += 3) {
+    const chunk = parts.slice(i, i + 3).join(" ").trim();
+    if (chunk) combinedChunks.push(chunk);
+  }
+  return combinedChunks;
+};
+
+// Streaming chunks with dynamic delay
+const streamChunks = async (message) => {
+  const chunks = splitMessage(message);
+  for (const chunk of chunks) {
+    setLog((l) => [...l, { role: "agent", content: chunk }]);
+    const delay = Math.min(Math.max(chunk.length * 40, 300), 2000); // dynamic delay
+    await new Promise((resolve) => setTimeout(resolve, delay));
+  }
+};
 
   const send = async () => {
     if (!input.trim() || loading) return;
