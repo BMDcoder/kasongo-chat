@@ -18,3 +18,9 @@ class ChatIn(BaseModel):
     username: Optional[str] = "guest"
     agent_id: int
     message: str
+
+class ChatIn(BaseModel):
+    username: str
+    message: str
+    agent_id: Optional[int] = None  # Required only for new chats
+    chat_id: Optional[int] = None   # For continuing existing chats
