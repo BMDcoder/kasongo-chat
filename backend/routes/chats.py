@@ -12,8 +12,8 @@ from sqlalchemy.orm import sessionmaker, Session
 
 # Load environment variables
 COHERE_API_KEY = os.getenv("COHERE_API_KEY")
-POSTGRES_URL = os.getenv("POSTGRES_URL")  # e.g., "postgresql://user:password@localhost/dbname"
-GOOGLE_DRIVE_CONNECTOR_ID = os.getenv("GOOGLE_DRIVE_CONNECTOR_ID")
+POSTGRES_URL = os.getenv("DATABASE_URL")  # e.g., "postgresql://user:password@localhost/dbname"
+GOOGLE_DRIVE_CONNECTOR_ID = os.getenv("CONNECTOR_ID")
 
 if not all([COHERE_API_KEY, POSTGRES_URL, GOOGLE_DRIVE_CONNECTOR_ID]):
     raise ValueError("Missing required environment variables: COHERE_API_KEY, POSTGRES_URL, GOOGLE_DRIVE_CONNECTOR_ID")
