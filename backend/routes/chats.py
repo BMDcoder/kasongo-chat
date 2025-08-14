@@ -1,8 +1,9 @@
+# The updated router code (replace the previous one)
 import os
 from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlmodel import select, Session
 from models import User, Agent, Chat, Message
-from schemas import ChatIn  # Assume ChatIn now includes optional chat_id: int | None = None
+from schemas import ChatIn
 from database import get_session
 from auth import get_password_hash
 from config import COHERE_API_KEY
@@ -14,7 +15,7 @@ router = APIRouter(tags=["chat"])
 co = cohere.ClientV2(COHERE_API_KEY) if COHERE_API_KEY else None
 
 # Google Drive Connector ID from environment (set this after creating the connector in Cohere)
-COHERE_CONNECTOR_ID = os.getenv("CONNECTOR_ID")
+COHERE_CONNECTOR_ID = os.getenv("COHERE_CONNECTOR_ID")
 
 # Note: To set up the Google Drive connector:
 # 1. Use Cohere's quick-start-connectors repo: https://github.com/cohere-ai/quick-start-connectors
@@ -63,7 +64,7 @@ def handle_chat(payload: ChatIn, session: Session = Depends(get_session)):
             raise HTTPException(status_code=404, detail="Chat not found")
         agent = session.get(Agent, chat.agent_id)
     else:
-        if not hasattr(payload, 'agent_id') or not payload.agent_id:
+        if not payload.agent_id:
             raise HTTPException(status_code=400, detail="agent_id required for new chats")
         agent = session.get(Agent, payload.agent_id)
         if not agent:
