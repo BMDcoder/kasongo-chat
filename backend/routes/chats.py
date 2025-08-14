@@ -105,7 +105,7 @@ def handle_chat(payload: ChatIn, session: Session = Depends(get_session)):
         try:
             connectors = [{"id": COHERE_CONNECTOR_ID}] if COHERE_CONNECTOR_ID else None
             response = co.chat(
-                model="command-r-plus-08-2024",  # Use a recent model suitable for RAG
+                model="command-xlarge-nightly",  # Use a recent model suitable for RAG
                 messages=cohere_messages,
                 connectors=connectors,
             )
