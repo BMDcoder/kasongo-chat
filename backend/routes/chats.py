@@ -56,7 +56,7 @@ def needs_search(query: str) -> bool:
     
     return has_trigger and has_target
 
-@app.post("/chat")
+@app.post("/chats")
 def chat(request: ChatRequest):
     message = request.message
     conversation_id = request.conversation_id or str(uuid.uuid4())
