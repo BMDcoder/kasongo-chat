@@ -4,6 +4,7 @@ from schemas import ChatIn
 from database import get_session
 from models import User, Agent, Chat, Message
 from routes.connector import build_cohere_messages, co, CONNECTOR_ID
+from config import COHERE_API_KEY
 from auth import get_password_hash  # for creating new users
 
 router = APIRouter(tags=["chat"])
@@ -49,7 +50,7 @@ def handle_chat(payload: ChatIn, session: Session = Depends(get_session)):
     cohere_messages, connectors = build_cohere_messages(agent, existing_messages, payload.message, CONNECTOR_ID)
 
     # 6️⃣ Get AI response
-    if co:
+    if COHERE_API_KEY and co:
         try:
             response = co.chat(
                 model="command-xlarge-nightly",
