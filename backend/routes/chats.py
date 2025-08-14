@@ -1,84 +1,109 @@
-from fastapi import APIRouter, HTTPException, Depends, Query
-from sqlmodel import select, Session
-from models import User, Agent, Chat, Message
-from schemas import ChatIn
-from database import get_session
-from auth import get_password_hash
-from config import COHERE_API_KEY
+import os
+import uuid
+from datetime import datetime
+from typing import Optional
+
 import cohere
+from fastapi import FastAPI
+from pydantic import BaseModel
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, Session
 
-router = APIRouter(tags=["chat"])
+# Load environment variables
+COHERE_API_KEY = os.getenv("COHERE_API_KEY")
+POSTGRES_URL = os.getenv("POSTGRES_URL")  # e.g., "postgresql://user:password@localhost/dbname"
+GOOGLE_DRIVE_CONNECTOR_ID = os.getenv("GOOGLE_DRIVE_CONNECTOR_ID")
 
-# Initialize Cohere client once with ClientV2 if API key is set
-co = cohere.ClientV2(COHERE_API_KEY) if COHERE_API_KEY else None
+if not all([COHERE_API_KEY, POSTGRES_URL, GOOGLE_DRIVE_CONNECTOR_ID]):
+    raise ValueError("Missing required environment variables: COHERE_API_KEY, POSTGRES_URL, GOOGLE_DRIVE_CONNECTOR_ID")
 
+# Cohere client
+co = cohere.Client(COHERE_API_KEY)
 
-@router.get("/chats")
-def get_chats(username: str = Query(...), session: Session = Depends(get_session)):
-    """Return all chats for a given username."""
-    user = session.exec(select(User).where(User.username == username)).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+# Database setup
+engine = create_engine(POSTGRES_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
 
-    chats = session.exec(select(Chat).where(Chat.user_id == user.id)).all()
-    result = []
-    for chat in chats:
-        messages = session.exec(select(Message).where(Message.chat_id == chat.id)).all()
-        result.append({
-            "chat_id": chat.id,
-            "agent_id": chat.agent_id,
-            "messages": [{"role": m.role, "content": m.content} for m in messages]
-        })
-    return result
+class Message(Base):
+    __tablename__ = "messages"
+    id = Column(Integer, primary_key=True, index=True)
+    conversation_id = Column(String, index=True)
+    role = Column(String)  # "USER" or "CHATBOT"
+    content = Column(String)
+    timestamp = Column(DateTime, default=datetime.utcnow)
 
+# Create tables if they don't exist
+Base.metadata.create_all(bind=engine)
 
-@router.post("/chats")
-def create_chat(payload: ChatIn, session: Session = Depends(get_session)):
-    """Handles chat requests between user and AI agent."""
+# FastAPI app
+app = FastAPI()
 
-    # 1️⃣ Find or create user
-    user = session.exec(select(User).where(User.username == payload.username)).first()
-    if not user:
-        user = User(username=payload.username, password_hash=get_password_hash("temppw"))
-        session.add(user)
-        session.commit()
-        session.refresh(user)
+# Request model
+class ChatRequest(BaseModel):
+    message: str
+    conversation_id: Optional[str] = None
 
-    # 2️⃣ Find agent
-    agent = session.get(Agent, payload.agent_id)
-    if not agent:
-        raise HTTPException(status_code=404, detail="Agent not found")
+# Function to check if query needs search in Google Drive
+def needs_search(query: str) -> bool:
+    query_lower = query.lower()
+    trigger_phrases = ["find", "recommend", "looking for", "search for", "need a"]
+    target_keywords = ["professional", "service provider", "supplier"]
+    
+    has_trigger = any(phrase in query_lower for phrase in trigger_phrases)
+    has_target = any(kw in query_lower for kw in target_keywords)
+    
+    return has_trigger and has_target
 
-    # 3️⃣ Create chat record
-    chat = Chat(user_id=user.id, agent_id=agent.id)
-    session.add(chat)
-    session.commit()
-    session.refresh(chat)
-
-    # 4️⃣ Save user message
-    msg = Message(chat_id=chat.id, role="user", content=payload.message)
-    session.add(msg)
-    session.commit()
-
-    # 5️⃣ Get AI response from Cohere ClientV2 chat API
-    if COHERE_API_KEY and co:
-        try:
-            response = co.chat(
-                model="command-xlarge-nightly",
-                messages=[
-                    {"role": "system", "content": agent.system_prompt or "You are a helpful assistant."},
-                    {"role": "user", "content": payload.message}
-                ],
-            )
-            ai_text = response.message.content[0].text
-        except Exception as e:
-            ai_text = f"(Cohere API call failed) {str(e)}"
-    else:
-        ai_text = f"Cohere API key not configured; running in mock mode. Echo: {payload.message}"
-
-    # 6️⃣ Save AI response
-    ai_msg = Message(chat_id=chat.id, role="agent", content=ai_text)
-    session.add(ai_msg)
-    session.commit()
-
-    return {"chat_id": chat.id, "response": ai_text}
+@app.post("/chat")
+def chat(request: ChatRequest):
+    message = request.message
+    conversation_id = request.conversation_id or str(uuid.uuid4())
+    
+    # Get DB session
+    db: Session = SessionLocal()
+    
+    # Fetch chat history
+    history_query = db.query(Message).filter(Message.conversation_id == conversation_id).order_by(Message.timestamp.asc())
+    history = history_query.all()
+    chat_history = [{"role": msg.role, "message": msg.content} for msg in history]
+    
+    # Determine if search is needed
+    is_search_needed = needs_search(message)
+    connectors = [{"id": GOOGLE_DRIVE_CONNECTOR_ID}] if is_search_needed else []
+    
+    # Call Cohere Chat API
+    response = co.chat(
+        model="command-a-03-2025",
+        message=message,
+        chat_history=chat_history,
+        connectors=connectors
+    )
+    
+    bot_response = response.text
+    
+    # Save user message and bot response to DB
+    user_msg = Message(
+        conversation_id=conversation_id,
+        role="USER",
+        content=message,
+        timestamp=datetime.utcnow()
+    )
+    db.add(user_msg)
+    
+    bot_msg = Message(
+        conversation_id=conversation_id,
+        role="CHATBOT",
+        content=bot_response,
+        timestamp=datetime.utcnow()
+    )
+    db.add(bot_msg)
+    
+    db.commit()
+    db.close()
+    
+    return {
+        "response": bot_response,
+        "conversation_id": conversation_id
+    }
