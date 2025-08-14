@@ -49,7 +49,7 @@ def handle_chat(payload: ChatIn, session: Session = Depends(get_session)):
     cohere_messages, connectors = build_cohere_messages(agent, existing_messages, payload.message, CONNECTOR_ID)
 
     # 6️⃣ Get AI response
-    if co:
+    if COHERE_API_KEY and co:
         try:
             response = co.chat(
                 model="command-xlarge-nightly",
