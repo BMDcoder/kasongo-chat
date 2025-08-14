@@ -1,10 +1,3 @@
-# Important: Ensure you have the latest version of the Cohere Python SDK installed.
-# Run `pip install --upgrade cohere` to get version 5.17.0 or later, which includes ClientV2 and v2 API support.
-# If you're encountering errors like AttributeError or API failures, this upgrade should resolve them.
-
-# schemas.py remains the same as before
-
-# The updated router code
 import os
 from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlmodel import select, Session
@@ -23,14 +16,6 @@ co = cohere.ClientV2(api_key=COHERE_API_KEY) if COHERE_API_KEY else None
 # Google Drive Connector ID from environment (set this after creating the connector in Cohere)
 COHERE_CONNECTOR_ID = os.getenv("CONNECTOR_ID")
 
-# Note: To set up the Google Drive connector:
-# 1. Use Cohere's quick-start-connectors repo: https://github.com/cohere-ai/quick-start-connectors
-# 2. Select the Google Drive connector, configure authentication (Service Account or OAuth).
-#    - For Service Account: Create in Google Cloud Console, download JSON credentials, set env vars.
-# 3. Deploy the connector API (e.g., on Vercel, AWS, etc.).
-# 4. Register the connector via Cohere API: POST to /v1/connectors with url, name, service_auth if needed.
-# 5. Get the connector ID from the response and set COHERE_CONNECTOR_ID env var.
-# The connector can be configured to search specific folders via its implementation or options.
 
 @router.get("/chats")
 def get_chats(username: str = Query(...), session: Session = Depends(get_session)):
@@ -85,42 +70,57 @@ def handle_chat(payload: ChatIn, session: Session = Depends(get_session)):
     session.add(msg)
     session.commit()
 
-    # 4️⃣ Prepare messages for Cohere
-    existing_messages = session.exec(
-        select(Message).where(Message.chat_id == chat.id).order_by(Message.id)
-    ).all()
-
-    cohere_messages = []
+def build_cohere_messages(agent, existing_messages, latest_user_query):
+    # Build system prompt
     system_prompt = agent.system_prompt or "You are a helpful assistant."
-    # Append instruction for conditional use of connector
-    system_prompt += "\nYou have access to a Google Drive connector for searching information about professionals, service providers, and suppliers. Only use the connector when the user's query is about finding such entities. For all other queries, answer based on your knowledge without using the connector."
-    cohere_messages.append({"role": "system", "content": system_prompt})
+    system_prompt += (
+        "\nYou have access to a Google Drive connector for searching information "
+        "about professionals, service providers, and suppliers. Only use the connector "
+        "when the user's query is about finding such entities. For all other queries, "
+        "answer based on your knowledge without using the connector."
+    )
 
-    for m in existing_messages:
-        role = "user" if m.role == "user" else "assistant"
-        cohere_messages.append({"role": role, "content": m.content})
+    # Ensure existing_messages is iterable
+    existing_messages = existing_messages or []
 
-    # 5️⃣ Get AI response from Cohere ClientV2 chat API with connector
-    if COHERE_API_KEY and co:
-        try:
-            connectors = [{"id": COHERE_CONNECTOR_ID}] if COHERE_CONNECTOR_ID else None
-            response = co.chat(
-                model="command-xlarge-nightly",  # Use a recent model suitable for RAG
-                messages=cohere_messages,
-                connectors=connectors,
+    # Build base array with system prompt + history
+    cohere_messages = [{"role": "system", "content": system_prompt}] + [
+        {"role": "user" if m.role == "user" else "assistant", "content": m.content}
+        for m in existing_messages
+    ]
+
+    # Append the latest user query
+    cohere_messages.append({"role": "user", "content": latest_user_query})
+
+    return cohere_messages
+
+
+# Inside your route handler (not inside build_cohere_messages)
+if COHERE_API_KEY and co:
+    try:
+        connectors = [{"id": COHERE_CONNECTOR_ID}] if COHERE_CONNECTOR_ID else None
+        cohere_messages = build_cohere_messages(agent, existing_messages, payload.message)
+        
+        response = co.chat(
+            model="command-xlarge-nightly",  # Use a recent model suitable for RAG
+            messages=cohere_messages,
+            connectors=connectors,
+        )
+        ai_text = response.message.content[0].text
+        
+        # Optionally handle citations if present
+        if response.citations:
+            ai_text += "\n\nCitations:\n" + "\n".join(
+                [f"{c['start']}-{c['end']}: {c['text']}" for c in response.citations]
             )
-            ai_text = response.message.content[0].text
-            # Optionally handle citations if present
-            if response.citations:
-                ai_text += "\n\nCitations:\n" + "\n".join([f"{c['start']}-{c['end']}: {c['text']}" for c in response.citations])
-        except Exception as e:
-            ai_text = f"(Cohere API call failed) {str(e)}"
-    else:
-        ai_text = f"Cohere API key not configured; running in mock mode. Echo: {payload.message}"
+    except Exception as e:
+        ai_text = f"(Cohere API call failed) {str(e)}"
+else:
+    ai_text = f"Cohere API key not configured; running in mock mode. Echo: {payload.message}"
 
-    # 6️⃣ Save AI response
-    ai_msg = Message(chat_id=chat.id, role="agent", content=ai_text)
-    session.add(ai_msg)
-    session.commit()
+# Save AI response
+ai_msg = Message(chat_id=chat.id, role="agent", content=ai_text)
+session.add(ai_msg)
+session.commit()
 
-    return {"chat_id": chat.id, "response": ai_text}
+return {"chat_id": chat.id, "response": ai_text}
