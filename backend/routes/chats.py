@@ -64,7 +64,7 @@ def create_chat(payload: ChatIn, session: Session = Depends(get_session)):
     if COHERE_API_KEY and co:
         try:
             response = co.chat(
-                model="command-a-03-2025",
+                model="command-xlarge-nightly",
                 messages=[
                     {"role": "system", "content": agent.system_prompt or "You are a helpful assistant."},
                     {"role": "user", "content": payload.message}
