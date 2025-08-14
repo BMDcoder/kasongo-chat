@@ -2,7 +2,7 @@ import re
 import cohere
 from config import COHERE_API_KEY, CONNECTOR_ID
 
-co = cohere.ClientV2(api_key=COHERE_API_KEY) if COHERE_API_KEY else None
+co = cohere.ClientV2(COHERE_API_KEY) if COHERE_API_KEY else None
 
 def build_cohere_messages(agent, existing_messages, latest_user_query, google_drive_connector_id=None):
     system_prompt = agent.system_prompt or "You are a helpful assistant."
