@@ -58,7 +58,7 @@ def handle_chat(payload: ChatIn, session: Session = Depends(get_session)):
                     {"role": "system", "content": agent.system_prompt or "You are a helpful assistant."},
                     {"role": "user", "content": payload.message}
                 ],
-                connectors=connectors
+                connectors=connectors,
             )
             ai_text = response.message.content[0].text
         except Exception as e:
