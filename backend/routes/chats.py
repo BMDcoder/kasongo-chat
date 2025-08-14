@@ -53,7 +53,10 @@ def handle_chat(payload: ChatIn, session: Session = Depends(get_session)):
         try:
             response = co.chat(
                 model="command-xlarge-nightly",
-                messages=cohere_messages,
+                messages=[
+                    {"role": "system", "content": agent.system_prompt or "You are a helpful assistant."},
+                    {"role": "user", "content": payload.message}
+                ],
                 connectors=connectors
             )
             ai_text = response.message.content[0].text
