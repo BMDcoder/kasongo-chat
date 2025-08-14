@@ -1,4 +1,10 @@
-# The updated router code (replace the previous one)
+# Important: Ensure you have the latest version of the Cohere Python SDK installed.
+# Run `pip install --upgrade cohere` to get version 5.17.0 or later, which includes ClientV2 and v2 API support.
+# If you're encountering errors like AttributeError or API failures, this upgrade should resolve them.
+
+# schemas.py remains the same as before
+
+# The updated router code
 import os
 from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlmodel import select, Session
@@ -11,11 +17,11 @@ import cohere
 
 router = APIRouter(tags=["chat"])
 
-# Initialize Cohere client once with ClientV2 if API key is set
-co = cohere.ClientV2(COHERE_API_KEY) if COHERE_API_KEY else None
+# Initialize Cohere client with api_key explicitly
+co = cohere.ClientV2(api_key=COHERE_API_KEY) if COHERE_API_KEY else None
 
 # Google Drive Connector ID from environment (set this after creating the connector in Cohere)
-COHERE_CONNECTOR_ID = os.getenv("COHERE_CONNECTOR_ID")
+COHERE_CONNECTOR_ID = os.getenv("CONNECTOR_ID")
 
 # Note: To set up the Google Drive connector:
 # 1. Use Cohere's quick-start-connectors repo: https://github.com/cohere-ai/quick-start-connectors
