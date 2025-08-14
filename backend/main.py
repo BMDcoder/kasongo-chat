@@ -8,7 +8,7 @@ from models import User
 from routes.chats import router as chats_router
 
 
-app = FastAPI(title="RAG Chatbot", lifespan=lifespan)
+app = FastAPI(title="RAG Chatbot")
 
 app.add_middleware(
     CORSMiddleware,
