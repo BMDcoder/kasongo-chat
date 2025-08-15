@@ -1,4 +1,30 @@
 [
-  {"id":3,"title":"Supplier Contract","content":"Details of supplier contract for ABC Corp","url":"http://example.com/supplier1"},
-  {"id":4,"title":"Professional Bio","content":"John Doe, expert consultant in AI","url":"http://example.com/johndoe"}
+    {
+        "supplier_id": "SUP001",
+        "name": "ABC Electronics",
+        "contact_person": "John Doe",
+        "email": "john.doe@abc.com",
+        "phone": "+1-123-456-7890",
+        "address": "123 Main St, City, Country",
+        "products_services": ["Electronics", "Components"],
+        "contract_start_date": "2023-01-01",
+        "contract_end_date": "2024-12-31",
+        "payment_terms": "Net 30",
+        "status": "Active",
+        "notes": "Preferred supplier for urgent orders."
+    },
+    {
+        "supplier_id": "SUP002",
+        "name": "XYZ Manufacturing",
+        "contact_person": "Jane Smith",
+        "email": "jane.smith@xyz.com",
+        "phone": "+1-987-654-3210",
+        "address": "456 Elm St, Town, Country",
+        "products_services": ["Machinery", "Tools"],
+        "contract_start_date": "2023-02-15",
+        "contract_end_date": "2025-02-14",
+        "payment_terms": "Net 60",
+        "status": "Active",
+        "notes": "Requires advance notice for bulk orders."
+    }
 ]
