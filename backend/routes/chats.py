@@ -1,17 +1,19 @@
+# routers/chat_router.py
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import select, Session
 from schemas import ChatIn
 from database import get_session
 from models import User, Agent, Chat, Message
-from routes.connector import build_cohere_messages, co, CONNECTOR_ID
-from config import COHERE_API_KEY
-from auth import get_password_hash  # for creating new users
+from services.ai_service import build_cohere_messages, co, needs_tool
+from auth import get_password_hash
+
+GOOGLE_DRIVE_TOOL_NAME = "google_drive_connector"
 
 router = APIRouter(tags=["chat"])
 
 @router.post("/chats")
 def handle_chat(payload: ChatIn, session: Session = Depends(get_session)):
-    """Handles chat requests with AI agent using RAG via Cohere and Google Drive connector."""
+    """Handles chat requests using Cohere V2 with optional Google Drive tool."""
 
     # 1️⃣ Find or create user
     user = session.exec(select(User).where(User.username == payload.username)).first()
@@ -46,16 +48,19 @@ def handle_chat(payload: ChatIn, session: Session = Depends(get_session)):
     # 4️⃣ Fetch existing messages
     existing_messages = session.exec(select(Message).where(Message.chat_id == chat.id)).all()
 
-    # 5️⃣ Build Cohere messages with connector decision
-    cohere_messages, connectors = build_cohere_messages(agent, existing_messages, payload.message, CONNECTOR_ID)
+    # 5️⃣ Build messages for Cohere
+    cohere_messages = build_cohere_messages(agent, existing_messages, payload.message)
 
-    # 6️⃣ Get AI response
-    if COHERE_API_KEY and co:
+    # 6️⃣ Decide whether to use Google Drive tool
+    tools = [{"name": GOOGLE_DRIVE_TOOL_NAME}] if needs_tool(payload.message) else None
+
+    # 7️⃣ Call Cohere V2 chat API
+    if co:
         try:
             response = co.chat(
-                model="command-xlarge-nightly",
+                model="command-nightly",
                 messages=cohere_messages,
-                connectors=connectors
+                tools=tools
             )
             ai_text = response.message.content[0].text
         except Exception as e:
@@ -63,7 +68,7 @@ def handle_chat(payload: ChatIn, session: Session = Depends(get_session)):
     else:
         ai_text = f"Echo (mock mode): {payload.message}"
 
-    # 7️⃣ Save AI response
+    # 8️⃣ Save AI response
     ai_msg = Message(chat_id=chat.id, role="agent", content=ai_text)
     session.add(ai_msg)
     session.commit()
