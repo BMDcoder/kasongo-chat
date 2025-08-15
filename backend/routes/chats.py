@@ -81,16 +81,6 @@ def handle_chat(payload: ChatIn, session: Session = Depends(get_session), user: 
                     documents=documents
                 )
 
-                # Check if tool was called again
-                if response.tool_calls:
-                    documents = process_tool_call(response.tool_calls[0])
-                    response = co.chat(
-                        model="command-r-plus",
-                        messages=messages,
-                        tools=tools,
-                        documents=documents
-                    )
-
                 ai_text = response.message.content[0].text if response.message.content else "No response"
 
             except Exception as e:
