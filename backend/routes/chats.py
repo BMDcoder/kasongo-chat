@@ -5,7 +5,8 @@ from schemas import ChatIn
 from database import get_session
 from models import User, Agent, Chat, Message
 from routes.ai_service import build_cohere_messages, co, needs_tool, process_tool_call
-from auth import get_password_hash, verify_password, create_access_token, get_current_user
+from auth import create_access_token, get_current_user
+from utils import get_password_hash, verify_password  # Import from utils.py
 from datetime import timedelta
 import logging
 
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 LOCAL_FILE_TOOL_NAME = "local_file_search"
 
-router = APIRouter(tags=["chat", "auth"], prefix="/api")  # Added prefix for /api/chats
+router = APIRouter(tags=["chat", "auth"], prefix="/api")  # For /api/chats
 
 @router.post("/auth/token")
 def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(get_session)):
