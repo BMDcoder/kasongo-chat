@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 LOCAL_FILE_TOOL_NAME = "local_file_search"
 
-router = APIRouter(tags=["chat", "auth"], prefix="/api")  # For /api/chats
+router = APIRouter(tags=["chat", "auth"])  # For /api/chats
 
 @router.post("/auth/token")
 def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(get_session)):
