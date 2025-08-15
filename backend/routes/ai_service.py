@@ -1,72 +1,80 @@
-import os
+import csv
+import json
 import logging
-from typing import List
-from models import Agent, Message
-from routes.local_file_service import search_local_files
-import cohere
+from typing import List, Dict
+import re
+from pathlib import Path
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# --- Initialize Cohere V2 client ---
-COHERE_API_KEY = os.environ.get("COHERE_API_KEY")
-co = None
-if COHERE_API_KEY:
+DATA_CSV_PATH = "data/suppliers.csv"
+DATA_JSON_PATH = "data/suppliers.json"
+
+def load_local_files() -> List[Dict]:
+    """Load and combine data from CSV and JSON files."""
+    documents = []
+
+    # Load CSV
+    csv_path = Path(DATA_CSV_PATH)
+    if csv_path.exists():
+        try:
+            with open(csv_path, mode="r", encoding="utf-8") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    documents.append({
+                        "id": str(row.get("id", len(documents)+1)),
+                        "title": str(row.get("title", "") or ""),
+                        "content": str(row.get("content", "") or ""),
+                        "url": str(row.get("url", "") or "")
+                    })
+        except Exception as e:
+            logger.error(f"Failed to load {DATA_CSV_PATH}: {str(e)}")
+    else:
+        logger.warning(f"{DATA_CSV_PATH} not found")
+
+    # Load JSON
+    json_path = Path(DATA_JSON_PATH)
+    if json_path.exists():
+        try:
+            with open(json_path, mode="r", encoding="utf-8") as f:
+                try:
+                    json_data = json.load(f)
+                except json.JSONDecodeError as e:
+                    logger.error(f"JSON decode error in {DATA_JSON_PATH}: {str(e)}")
+                    json_data = []
+
+                for item in json_data:
+                    documents.append({
+                        "id": str(item.get("id", len(documents)+1)),
+                        "title": str(item.get("title", "") or ""),
+                        "content": str(item.get("content", "") or ""),
+                        "url": str(item.get("url", "") or "")
+                    })
+        except Exception as e:
+            logger.error(f"Failed to load {DATA_JSON_PATH}: {str(e)}")
+    else:
+        logger.warning(f"{DATA_JSON_PATH} not found")
+
+    return documents
+
+def search_local_files(query: str) -> List[Dict]:
+    """Search local files for relevant documents."""
     try:
-        co = cohere.ClientV2(COHERE_API_KEY)
-        logger.info("Cohere ClientV2 initialized successfully")
+        documents = load_local_files()
+        if not documents:
+            return []
+
+        query_words = set(re.findall(r'\w+', query.lower()))
+        relevant_docs = []
+
+        for doc in documents:
+            content = doc.get("content", "").lower()
+            title = doc.get("title", "").lower()
+            if any(word in content or word in title for word in query_words):
+                relevant_docs.append(doc)
+
+        return relevant_docs[:5]  # Limit results
     except Exception as e:
-        logger.error(f"Failed to initialize Cohere ClientV2: {str(e)}")
-else:
-    logger.error("COHERE_API_KEY not set")
-
-
-def build_cohere_messages(agent: Agent, existing_messages: List[Message], new_message: str) -> List[dict]:
-    """
-    Build messages array for Cohere V2 chat API.
-    Each message must be: {"role": "...", "content": "..."}.
-    """
-    messages = []
-
-    # System prompt
-    system_prompt = agent.system_prompt or "You are a helpful assistant."
-    system_prompt += "\nUse local file RAG documents if relevant; otherwise answer normally."
-    messages.append({"role": "system", "content": system_prompt})
-
-    # Previous conversation
-    for msg in existing_messages:
-        role = "user" if msg.role == "user" else "assistant"
-        messages.append({"role": role, "content": msg.content})
-
-    # Latest user message
-    messages.append({"role": "user", "content": new_message})
-
-    return messages
-
-
-def needs_tool(message: str) -> bool:
-    """Return True if local file search RAG should be used."""
-    try:
-        return any(keyword in message.lower() for keyword in ["find", "search", "lookup", "recommend"])
-    except Exception as e:
-        logger.error(f"Error in needs_tool: {str(e)}")
-        return False
-
-
-def process_tool_call(tool_call: dict) -> List[dict]:
-    """
-    Process a tool call for local file search.
-    Returns a list of documents compatible with Cohere's `documents` parameter.
-    """
-    try:
-        if tool_call.get("name") == "local_file_search":
-            query = tool_call.get("parameters", {}).get("query", "")
-            results = search_local_files(query)
-            return [
-                {"id": doc.get("id"), "title": doc.get("title"), "content": doc.get("content"), "url": doc.get("url")}
-                for doc in results
-            ]
-        return []
-    except Exception as e:
-        logger.error(f"Error processing tool call: {str(e)}")
+        logger.error(f"Local file search failed: {str(e)}")
         return []
