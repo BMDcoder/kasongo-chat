@@ -1,13 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routes import admin_agents, auth, chat
-from auth import get_password_hash
-from sqlmodel import Session, select
-from models import User
+from database import init_db  # Import init_db instead of create_db_and_tables
 from routes.chats import router as chats_router
 
 
 app = FastAPI(title="RAG Chatbot")
+init_db()
 
 app.add_middleware(
     CORSMiddleware,
