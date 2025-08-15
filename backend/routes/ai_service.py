@@ -55,23 +55,25 @@ def needs_tool(message: str) -> bool:
 
 def process_tool_call(tool_call: dict) -> List[dict]:
     """
-    Process a tool call. Supports 'local_file_search'.
-    Ensures documents have correct types for Cohere V2 API.
+    Process a tool call. Currently supports 'local_file_search'.
+    Returns a list of documents compatible with Cohere V2 RAG.
     """
     try:
         if tool_call.get("name") == "local_file_search":
             query = tool_call.get("parameters", {}).get("query", "")
             results = search_local_files(query)
-            # Enforce all fields as strings
-            return [
-                {
-                    "id": str(doc.get("id", "")),
-                    "title": str(doc.get("title", "") or ""),
-                    "content": str(doc.get("content", "") or ""),
-                    "url": str(doc.get("url", "") or "")
-                }
-                for doc in results
-            ]
+            # Format for Cohere V2 RAG
+            formatted_docs = []
+            for doc in results:
+                formatted_docs.append({
+                    "id": str(doc.get("id")),
+                    "data": {"text": doc.get("content", "")},
+                    "metadata": {
+                        "title": doc.get("title", ""),
+                        "url": doc.get("url", "")
+                    }
+                })
+            return formatted_docs
         return []
     except Exception as e:
         logger.error(f"Error processing tool call: {str(e)}")
