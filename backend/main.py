@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routes import admin_agents, auth, chat
+from routes import chats
 from database import init_db  # Import init_db instead of create_db_and_tables
 from routes.chats import router as chats_router
 
