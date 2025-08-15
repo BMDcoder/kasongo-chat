@@ -3,24 +3,53 @@ from sqlmodel import select, Session
 from schemas import ChatIn
 from database import get_session
 from models import User, Agent, Chat, Message
-from routes.ai_service import build_cohere_messages, co, needs_tool, process_tool_call
-from auth import get_password_hash, get_current_user
+from routes.ai_service import build_cohere_messages, co, needs_tool
 from cohere.error import CohereAPIError
+import csv, json, os
 
 LOCAL_FILE_TOOL_NAME = "local_file_search"
 
 router = APIRouter(tags=["chat"])
 
-@router.post("/chats")
-def handle_chat(payload: ChatIn, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
-    """Handles chat requests using Cohere V2 with RAG from local files."""
-    if user.username != payload.username:
-        raise HTTPException(status_code=403, detail="Unauthorized user")
+# --- Local RAG function ---
+def process_tool_call(tool_call):
+    """Search local CSV and JSON for matching content."""
+    query = tool_call["parameters"]["query"].lower()
+    results = []
 
-    # Find or create user
+    # Search CSV
+    csv_path = os.path.join(os.getcwd(), "data.csv")
+    if os.path.exists(csv_path):
+        with open(csv_path, newline="", encoding="utf-8") as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                if query in row["title"].lower() or query in row["content"].lower():
+                    results.append({
+                        "title": row["title"],
+                        "content": row["content"],
+                        "url": row["url"]
+                    })
+
+    # Search JSON
+    json_path = os.path.join(os.getcwd(), "data.json")
+    if os.path.exists(json_path):
+        with open(json_path, "r", encoding="utf-8") as jsonfile:
+            json_data = json.load(jsonfile)
+            for item in json_data:
+                if query in item.get("title", "").lower() or query in item.get("content", "").lower():
+                    results.append(item)
+
+    return results
+
+
+@router.post("/chats")
+def handle_chat(payload: ChatIn, session: Session = Depends(get_session)):
+    """Handles chat requests using Cohere V2 with RAG from local files."""
+    
+    # Find or create user (no auth)
     user = session.exec(select(User).where(User.username == payload.username)).first()
     if not user:
-        user = User(username=payload.username, password_hash=get_password_hash("temppw"))  # Replace with proper auth
+        user = User(username=payload.username, password_hash="temppw")
         session.add(user)
         session.commit()
         session.refresh(user)
@@ -61,7 +90,6 @@ def handle_chat(payload: ChatIn, session: Session = Depends(get_session), user: 
                   {"name": "query", "type": "string", "description": "Search query for local files."}
               ]}] if needs_tool(payload.message) else None
 
-    # Call Cohere V2 chat API with RAG
     try:
         documents = []
         if tools:
