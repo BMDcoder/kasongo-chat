@@ -2,7 +2,7 @@ import re
 import logging
 from os import environ
 from cohere import ClientV2
-from services.local_file_service import local_file_operation
+from routes.local_file_service import local_file_operation
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
