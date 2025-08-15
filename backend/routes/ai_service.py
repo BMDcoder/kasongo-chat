@@ -2,7 +2,7 @@ import re
 import logging
 from os import environ
 from cohere import ClientV2
-from config import COHERE_API_KEY
+from services.local_file_service import local_file_operation
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -19,26 +19,22 @@ else:
         logger.error(f"Failed to initialize Cohere client: {str(e)}")
         co = None
 
-GOOGLE_DRIVE_TOOL_NAME = "google_drive_connector"
+LOCAL_FILE_TOOL_NAME = "local_file_search"
 
 def needs_tool(query: str) -> bool:
-    """
-    Determine if the query requires the Google Drive tool for RAG.
-    """
+    """Determine if the query requires the local file search tool for RAG."""
     trigger_pattern = r"(find|search(ing)? for|looking for|need a|retrieve|document|file)"
-    target_pattern = r"(professional|service\s?provider|supplier|vendor|consultant|expert|file|document)"
+    target_pattern = r"(professional|service\s?provider|supplier|vendor|consultant|expert|contract|agreement|profile)"
     return bool(re.search(trigger_pattern, query.lower()) and re.search(target_pattern, query.lower()))
 
 def build_cohere_messages(agent, existing_messages, latest_user_query):
-    """
-    Build messages array for Cohere V2 chat API with tool and RAG instructions.
-    """
+    """Build messages array for Cohere V2 chat API."""
     base_prompt = agent.system_prompt or "You are a helpful assistant."
     tool_prompt = (
-        f"You have access to a tool named '{GOOGLE_DRIVE_TOOL_NAME}' that can search the user's Google Drive "
-        "for files containing information about professionals, service providers, suppliers, or specific documents. "
-        "Use this tool when the user explicitly requests information from their Google Drive or mentions files/documents. "
-        "For other queries, respond directly using your knowledge."
+        f"You have access to a tool named '{LOCAL_FILE_TOOL_NAME}' that searches local files "
+        "(data.csv and data.json) for information about professionals, service providers, suppliers, "
+        "or specific documents. Use this tool when the user requests information from files or mentions "
+        "documents related to these entities. For other queries, respond directly using your knowledge."
     )
     system_prompt = f"{base_prompt}\n\n{tool_prompt}"
     
@@ -50,11 +46,9 @@ def build_cohere_messages(agent, existing_messages, latest_user_query):
     
     return cohere_messages
 
-def process_tool_call(tool_call, user_id: int, session: Session) -> list[dict]:
-    """
-    Process Google Drive tool call and return documents for RAG.
-    """
-    if tool_call.name == GOOGLE_DRIVE_TOOL_NAME:
+def process_tool_call(tool_call) -> list[dict]:
+    """Process local file search tool call and return documents for RAG."""
+    if tool_call.name == LOCAL_FILE_TOOL_NAME:
         query = tool_call.parameters.get('query', '')
-        return google_drive_operation(query, user_id, session)
+        return local_file_operation(query)
     return []
