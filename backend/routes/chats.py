@@ -7,7 +7,7 @@ from models import User, Agent, Chat, Message
 from routes.connector import build_cohere_messages, co, needs_tool
 from auth import get_password_hash
 
-GOOGLE_DRIVE_TOOL_NAME = "google_drive_connector"
+GOOGLE_DRIVE_TOOL_NAME = "Google Drive (beta)"
 
 router = APIRouter(tags=["chat"])
 
