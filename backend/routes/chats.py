@@ -1,153 +1,119 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import select, Session
+from datetime import timedelta
+import logging
+
 from schemas import ChatIn
 from database import get_session
 from models import User, Agent, Chat, Message
 from routes.ai_service import build_cohere_messages, co, needs_tool, process_tool_call
 from auth import create_access_token, get_current_user
 from utils import get_password_hash, verify_password
-from datetime import timedelta
-import logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 LOCAL_FILE_TOOL_NAME = "local_file_search"
 
-router = APIRouter(tags=["chat", "auth"])  # No prefix here
+router = APIRouter(tags=["chat", "auth"])
 
+# ----------------------
+# AUTH ROUTES
+# ----------------------
 @router.post("/auth/token")
 def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(get_session)):
-    """Authenticate user and return JWT token."""
     logger.info(f"Login attempt for username: {form_data.username}")
     user = session.exec(select(User).where(User.username == form_data.username)).first()
     if not user or not verify_password(form_data.password, user.password_hash):
-        logger.error(f"Login failed for username: {form_data.username}")
-        raise HTTPException(
-            status_code=401,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise HTTPException(status_code=401, detail="Incorrect username or password", headers={"WWW-Authenticate": "Bearer"})
     access_token = create_access_token(data={"sub": user.username}, expires_delta=timedelta(minutes=30))
-    logger.info(f"Login successful for username: {form_data.username}")
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post("/auth/signup")
 def signup(form_data: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(get_session)):
-    """Create a new user."""
-    logger.info(f"Signup attempt for username: {form_data.username}")
     if form_data.username == "guest":
-        logger.error("Cannot sign up with reserved username 'guest'")
         raise HTTPException(status_code=400, detail="Username 'guest' is reserved")
     user = session.exec(select(User).where(User.username == form_data.username)).first()
     if user:
-        logger.error(f"Signup failed: Username {form_data.username} already exists")
         raise HTTPException(status_code=400, detail="Username already exists")
     user = User(username=form_data.username, password_hash=get_password_hash(form_data.password))
     session.add(user)
     session.commit()
     access_token = create_access_token(data={"sub": user.username})
-    logger.info(f"Signup successful for username: {form_data.username}")
     return {"access_token": access_token, "token_type": "bearer"}
 
+
+# ----------------------
+# CHAT ROUTE
+# ----------------------
 @router.post("/chats")
 def handle_chat(payload: ChatIn, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
-    """Handles chat requests using Cohere V2 with RAG from local files."""
+    """Handles chat requests with Cohere V2 and local RAG content."""
     logger.info(f"Chat request from username: {payload.username}")
+
     if user.username != payload.username:
-        logger.error(f"Unauthorized: Token username {user.username} does not match payload {payload.username}")
         raise HTTPException(status_code=403, detail="Unauthorized user")
 
-    try:
-        # Find or create user
-        user = session.exec(select(User).where(User.username == payload.username)).first()
-        if not user:
-            logger.error(f"User not found: {payload.username}")
-            raise HTTPException(status_code=404, detail="User not found")
+    # 1️⃣ Get user
+    user = session.exec(select(User).where(User.username == payload.username)).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
 
-        # Get or create chat
-        if payload.chat_id:
-            chat = session.get(Chat, payload.chat_id)
-            if not chat or chat.user_id != user.id:
-                logger.error(f"Chat not found: chat_id={payload.chat_id}, user_id={user.id}")
-                raise HTTPException(status_code=404, detail="Chat not found")
-            agent = session.get(Agent, chat.agent_id)
-        else:
-            if not payload.agent_id:
-                logger.error("agent_id required for new chats")
-                raise HTTPException(status_code=400, detail="agent_id required for new chats")
-            agent = session.get(Agent, payload.agent_id)
-            if not agent:
-                logger.error(f"Agent not found: agent_id={payload.agent_id}")
-                raise HTTPException(status_code=404, detail="Agent not found")
-            chat = Chat(user_id=user.id, agent_id=agent.id)
-            session.add(chat)
-            session.commit()
-            session.refresh(chat)
-
-        # Save user message
-        user_msg = Message(chat_id=chat.id, role="user", content=payload.message)
-        session.add(user_msg)
+    # 2️⃣ Get or create chat
+    if payload.chat_id:
+        chat = session.get(Chat, payload.chat_id)
+        if not chat or chat.user_id != user.id:
+            raise HTTPException(status_code=404, detail="Chat not found")
+        agent = session.get(Agent, chat.agent_id)
+    else:
+        if not payload.agent_id:
+            raise HTTPException(status_code=400, detail="agent_id required for new chats")
+        agent = session.get(Agent, payload.agent_id)
+        if not agent:
+            raise HTTPException(status_code=404, detail="Agent not found")
+        chat = Chat(user_id=user.id, agent_id=agent.id)
+        session.add(chat)
         session.commit()
+        session.refresh(chat)
 
-        # Fetch existing messages
-        existing_messages = session.exec(select(Message).where(Message.chat_id == chat.id)).all()
+    # 3️⃣ Save user message
+    user_msg = Message(chat_id=chat.id, role="user", content=payload.message)
+    session.add(user_msg)
+    session.commit()
 
-        # Build Cohere messages (chat_history for ClientV2)
-        cohere_chat_history = build_cohere_messages(agent, existing_messages, payload.message)
+    # 4️⃣ Fetch existing messages
+    existing_messages = session.exec(select(Message).where(Message.chat_id == chat.id)).all()
 
-        # Decide whether to use local file search tool
-        tools = [{"name": LOCAL_FILE_TOOL_NAME, 
-                "description": "Searches local data.csv and data.json files for relevant information.",
-                "parameters": [
-                    {"name": "query", "type": "string", "description": "Search query for local files."}
-                ]}] if needs_tool(payload.message) else None
+    # 5️⃣ Build Cohere chat history
+    cohere_messages = build_cohere_messages(agent, existing_messages, payload.message)
 
-        # Call Cohere V2 chat API with RAG
-        documents = []
-        if tools:
-            documents = process_tool_call({"name": LOCAL_FILE_TOOL_NAME, "parameters": {"query": payload.message}})
-        
-        if co:
-            try:
-                response = co.chat(
-                    model="command-r-plus",
-                    message=payload.message,  # Current user message
-                    chat_history=cohere_chat_history,  # Previous messages
-                    tools=tools,
-                    documents=documents
-                )
-                
-                if response.tool_calls:
-                    documents = process_tool_call(response.tool_calls[0])
-                    response = co.chat(
-                        model="command-r-plus",
-                        message=payload.message,
-                        chat_history=cohere_chat_history,
-                        tools=tools,
-                        documents=documents
-                    )
-                
-                ai_text = response.text if response.text else "No response"
-            except Exception as e:
-                logger.error(f"Cohere API error: {str(e)}")
-                raise HTTPException(status_code=500, detail=f"Cohere API error: {str(e)}")
-        else:
+    # 6️⃣ RAG: Retrieve local docs
+    if needs_tool(payload.message):
+        retrieved_docs = process_tool_call({"name": LOCAL_FILE_TOOL_NAME, "parameters": {"query": payload.message}})
+        if retrieved_docs:
+            rag_content = "\n".join([f"{doc['title']}: {doc['content']}" for doc in retrieved_docs])
+            cohere_messages.insert(1, {"role": "system", "message": f"Relevant info from local files:\n{rag_content}"})
+
+    # 7️⃣ Call Cohere V2
+    try:
+        if not co:
             ai_text = f"Echo (mock mode): {payload.message}"
+        else:
+            response = co.chat(
+                model="command-r-plus",
+                messages=cohere_messages,
+                tools=None  # Tools optional; local RAG is manually included
+            )
+            ai_text = response.message.content[0].text if response.message.content else "No response"
 
-        # Save AI response
+        # 8️⃣ Save AI response
         ai_msg = Message(chat_id=chat.id, role="agent", content=ai_text)
         session.add(ai_msg)
         session.commit()
 
-        logger.info(f"Chat response generated for chat_id: {chat.id}")
         return {"chat_id": chat.id, "response": ai_text}
 
     except Exception as e:
-        logger.error(f"Error in handle_chat: {str(e)}")
-        try:
-            session.rollback()
-        except Exception as rollback_e:
-            logger.error(f"Rollback failed: {str(rollback_e)}")
-        raise HTTPException(status_code=500, detail=f"Error processing request: {str(e)}")
+        logger.error(f"Cohere API error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Cohere API error: {str(e)}")
