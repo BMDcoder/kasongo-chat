@@ -49,18 +49,14 @@ def signup(form_data: OAuth2PasswordRequestForm = Depends(), session: Session = 
 # ----------------------
 @router.post("/chats")
 def handle_chat(payload: ChatIn, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
-    """Handles chat requests with Cohere V2 and local RAG content."""
+    """Handles chat requests using Cohere V2 with RAG from local files."""
     logger.info(f"Chat request from username: {payload.username}")
-
+    
     if user.username != payload.username:
+        logger.error(f"Unauthorized: Token username {user.username} does not match payload {payload.username}")
         raise HTTPException(status_code=403, detail="Unauthorized user")
 
-    # 1️⃣ Get user
-    user = session.exec(select(User).where(User.username == payload.username)).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    # 2️⃣ Get or create chat
+    # Find or create chat
     if payload.chat_id:
         chat = session.get(Chat, payload.chat_id)
         if not chat or chat.user_id != user.id:
@@ -77,43 +73,48 @@ def handle_chat(payload: ChatIn, session: Session = Depends(get_session), user: 
         session.commit()
         session.refresh(chat)
 
-    # 3️⃣ Save user message
+    # Save user message
     user_msg = Message(chat_id=chat.id, role="user", content=payload.message)
     session.add(user_msg)
     session.commit()
 
-    # 4️⃣ Fetch existing messages
+    # Fetch conversation history
     existing_messages = session.exec(select(Message).where(Message.chat_id == chat.id)).all()
 
-    # 5️⃣ Build Cohere chat history
-    cohere_messages = build_cohere_messages(agent, existing_messages, payload.message)
+    # Build Cohere messages
+    chat_history = build_cohere_messages(agent, existing_messages, payload.message)
 
-    # 6️⃣ RAG: Retrieve local docs
-    if needs_tool(payload.message):
-        retrieved_docs = process_tool_call({"name": LOCAL_FILE_TOOL_NAME, "parameters": {"query": payload.message}})
-        if retrieved_docs:
-            rag_content = "\n".join([f"{doc['title']}: {doc['content']}" for doc in retrieved_docs])
-            cohere_messages.insert(1, {"role": "system", "message": f"Relevant info from local files:\n{rag_content}"})
+    # Decide whether to use local file search tool
+    tools = [{"name": "local_file_search",
+              "description": "Searches local data.csv and data.json files.",
+              "parameters": [{"name": "query", "type": "string", "description": "Search query for local files."}]}] \
+            if needs_tool(payload.message) else None
 
-    # 7️⃣ Call Cohere V2
+    # Prepare documents for RAG
+    documents = []
+    if tools:
+        documents = process_tool_call({"name": "local_file_search", "parameters": {"query": payload.message}})
+
+    # Call Cohere V2
     try:
-        if not co:
-            ai_text = f"Echo (mock mode): {payload.message}"
-        else:
+        if co:
             response = co.chat(
                 model="command-r-plus",
-                messages=cohere_messages,
-                tools=None  # Tools optional; local RAG is manually included
+                chat_history=chat_history,
+                tools=tools,
+                documents=documents
             )
-            ai_text = response.message.content[0].text if response.message.content else "No response"
-
-        # 8️⃣ Save AI response
-        ai_msg = Message(chat_id=chat.id, role="agent", content=ai_text)
-        session.add(ai_msg)
-        session.commit()
-
-        return {"chat_id": chat.id, "response": ai_text}
-
+            ai_text = response.text if response.text else "No response"
+        else:
+            ai_text = f"Echo (mock mode): {payload.message}"
     except Exception as e:
         logger.error(f"Cohere API error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Cohere API error: {str(e)}")
+
+    # Save AI response
+    ai_msg = Message(chat_id=chat.id, role="agent", content=ai_text)
+    session.add(ai_msg)
+    session.commit()
+
+    logger.info(f"Chat response generated for chat_id: {chat.id}")
+    return {"chat_id": chat.id, "response": ai_text}
