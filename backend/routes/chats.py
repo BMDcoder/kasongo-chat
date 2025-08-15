@@ -4,7 +4,7 @@ from sqlmodel import select, Session
 from schemas import ChatIn
 from database import get_session
 from models import User, Agent, Chat, Message
-from routes.connectors import build_cohere_messages, co, needs_tool
+from routes.connector import build_cohere_messages, co, needs_tool
 from auth import get_password_hash
 
 GOOGLE_DRIVE_TOOL_NAME = "google_drive_connector"
