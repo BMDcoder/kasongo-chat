@@ -1,19 +1,11 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from routes import chats
-from database import init_db  # Import init_db instead of create_db_and_tables
-from routes.chats import router as chats_router
+from routes.chats import router as chat_router
+from database import init_db
 
+app = FastAPI()
 
-app = FastAPI(title="RAG Chatbot")
+# Initialize database and guest user
 init_db()
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["https://kasongo-chat.vercel.app"],  # restrict in production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-app.include_router(chats_router, prefix="/api")
+# Include router with /api prefix
+app.include_router(chat_router, prefix="/api")
