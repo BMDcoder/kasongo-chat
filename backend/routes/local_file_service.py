@@ -23,10 +23,10 @@ def load_local_files() -> List[Dict]:
                 reader = csv.DictReader(f)
                 for row in reader:
                     documents.append({
-                        "id": row.get("id", str(len(documents) + 1)),
-                        "title": row.get("title", ""),
-                        "content": row.get("content", ""),
-                        "url": row.get("url", "")
+                        "id": str(row.get("id", len(documents)+1)),
+                        "title": str(row.get("title", "") or ""),
+                        "content": str(row.get("content", "") or ""),
+                        "url": str(row.get("url", "") or "")
                     })
         except Exception as e:
             logger.error(f"Failed to load {DATA_CSV_PATH}: {str(e)}")
@@ -38,13 +38,18 @@ def load_local_files() -> List[Dict]:
     if json_path.exists():
         try:
             with open(json_path, mode="r", encoding="utf-8") as f:
-                json_data = json.load(f)
+                try:
+                    json_data = json.load(f)
+                except json.JSONDecodeError as e:
+                    logger.error(f"JSON decode error in {DATA_JSON_PATH}: {str(e)}")
+                    json_data = []
+
                 for item in json_data:
                     documents.append({
-                        "id": item.get("id", str(len(documents) + 1)),
-                        "title": item.get("title", ""),
-                        "content": item.get("content", ""),
-                        "url": item.get("url", "")
+                        "id": str(item.get("id", len(documents)+1)),
+                        "title": str(item.get("title", "") or ""),
+                        "content": str(item.get("content", "") or ""),
+                        "url": str(item.get("url", "") or "")
                     })
         except Exception as e:
             logger.error(f"Failed to load {DATA_JSON_PATH}: {str(e)}")
@@ -53,51 +58,23 @@ def load_local_files() -> List[Dict]:
 
     return documents
 
-def generate_snippet(text: str, keywords: set, snippet_length: int = 150) -> str:
-    """Generate a snippet around the first occurrence of any keyword."""
-    text_lower = text.lower()
-    for word in keywords:
-        idx = text_lower.find(word)
-        if idx != -1:
-            start = max(0, idx - snippet_length // 2)
-            end = min(len(text), idx + snippet_length // 2)
-            snippet = text[start:end].strip()
-            if start > 0:
-                snippet = "..." + snippet
-            if end < len(text):
-                snippet = snippet + "..."
-            return snippet
-    return text[:snippet_length] + ("..." if len(text) > snippet_length else "")
-
-def search_local_files(query: str, top_k: int = 5) -> List[Dict]:
-    """Search local files for documents matching the query and return top results with snippets."""
+def search_local_files(query: str) -> List[Dict]:
+    """Search local files for relevant documents."""
     try:
         documents = load_local_files()
         if not documents:
             return []
 
         query_words = set(re.findall(r'\w+', query.lower()))
-        scored_docs = []
+        relevant_docs = []
 
         for doc in documents:
-            title = doc.get("title", "").lower()
             content = doc.get("content", "").lower()
-            # Simple relevance score: number of query words found
-            score = sum(1 for word in query_words if word in title or word in content)
-            if score > 0:
-                snippet = generate_snippet(doc.get("content", ""), query_words)
-                scored_docs.append({
-                    "id": doc.get("id"),
-                    "title": doc.get("title"),
-                    "content": snippet,
-                    "url": doc.get("url"),
-                    "score": score
-                })
+            title = doc.get("title", "").lower()
+            if any(word in content or word in title for word in query_words):
+                relevant_docs.append(doc)
 
-        # Sort by score descending and limit to top_k
-        scored_docs.sort(key=lambda x: x["score"], reverse=True)
-        return scored_docs[:top_k]
-
+        return relevant_docs[:5]  # Limit results
     except Exception as e:
         logger.error(f"Local file search failed: {str(e)}")
         return []
