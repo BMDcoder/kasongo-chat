@@ -26,6 +26,8 @@ def build_cohere_messages(agent, existing_messages, latest_user_query, google_dr
         target_pattern = r"(professional|service\s?provider|supplier|vendor)"
         return bool(re.search(trigger_pattern, query.lower()) and re.search(target_pattern, query.lower()))
 
-    connectors = [{"id": google_drive_connector_id}] if google_drive_connector_id and needs_connector(latest_user_query) else None
+    connectors = None
+    if google_drive_connector_id and needs_connector(latest_user_query):
+        connectors = [{"id": google_drive_connector_id, "type": "google_drive"}]
 
     return messages, connectors
