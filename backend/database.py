@@ -1,13 +1,13 @@
 from sqlmodel import create_engine, SQLModel, Session, select
 from os import environ
 from models import User
-from utils import get_password_hash  # Import from utils.py
+from utils import get_password_hash
 import logging
-from config import DATABASE_URL
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+DATABASE_URL = environ.get("DATABASE_URL", "sqlite:///database.db")
 engine = create_engine(DATABASE_URL)
 
 def init_db():
@@ -19,7 +19,7 @@ def init_db():
             logger.info("Creating guest user")
             guest_user = User(
                 username="guest",
-                password_hash=get_password_hash("guestpassword")  # Use utils.get_password_hash
+                password_hash=get_password_hash("guestpassword")
             )
             session.add(guest_user)
             session.commit()
