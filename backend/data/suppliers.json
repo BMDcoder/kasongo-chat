@@ -1,6 +1,6 @@
 [
     {
-        "supplier_id": "SUP001",
+        "supplier_id": "SUP004",
         "name": "ABC Electronics",
         "contact_person": "John Doe",
         "email": "john.doe@abc.com",
@@ -14,7 +14,7 @@
         "notes": "Preferred supplier for urgent orders."
     },
     {
-        "supplier_id": "SUP002",
+        "supplier_id": "SUP005",
         "name": "XYZ Manufacturing",
         "contact_person": "Jane Smith",
         "email": "jane.smith@xyz.com",
