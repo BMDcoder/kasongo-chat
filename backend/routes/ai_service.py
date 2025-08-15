@@ -9,25 +9,32 @@ logger = logging.getLogger(__name__)
 
 # Initialize Cohere client
 COHERE_API_KEY = os.environ.get("COHERE_API_KEY")
-co = cohere.Client(COHERE_API_KEY) if COHERE_API_KEY else None
+if not COHERE_API_KEY:
+    logger.error("COHERE_API_KEY not set")
+    co = None
+else:
+    try:
+        co = cohere.ClientV2(COHERE_API_KEY)  # Explicitly use ClientV2
+        logger.info("Cohere ClientV2 initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize Cohere ClientV2: {str(e)}")
+        co = None
 
 def build_cohere_messages(agent: Agent, existing_messages: List[Message], new_message: str) -> List[dict]:
-    """Builds message history for Cohere API."""
+    """Builds chat history for Cohere ClientV2 API."""
     try:
-        messages = [{"role": "system", "content": agent.system_prompt}]
+        chat_history = [{"role": "system", "message": agent.system_prompt}]
         for msg in existing_messages:
             role = "user" if msg.role == "user" else "assistant"
-            messages.append({"role": role, "content": msg.content})
-        messages.append({"role": "user", "content": new_message})
-        return messages
+            chat_history.append({"role": role, "message": msg.content})
+        return chat_history  # Exclude new_message, as it's passed separately
     except Exception as e:
-        logger.error(f"Error building Cohere messages: {str(e)}")
+        logger.error(f"Error building Cohere chat history: {str(e)}")
         raise
 
 def needs_tool(message: str) -> bool:
     """Determines if the message requires a tool (e.g., file search)."""
     try:
-        # Simple heuristic: check for keywords indicating search
         return any(keyword in message.lower() for keyword in ["find", "search", "lookup"])
     except Exception as e:
         logger.error(f"Error in needs_tool: {str(e)}")
