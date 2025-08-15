@@ -3,7 +3,7 @@ from sqlmodel import select, Session
 from schemas import ChatIn
 from database import get_session
 from models import User, Agent, Chat, Message
-from services.ai_service import build_cohere_messages, co, needs_tool, process_tool_call
+from routes.ai_service import build_cohere_messages, co, needs_tool, process_tool_call
 from auth import get_password_hash, get_current_user
 from cohere.error import CohereAPIError
 
