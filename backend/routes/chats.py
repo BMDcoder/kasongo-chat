@@ -12,85 +12,105 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 LOCAL_FILE_TOOL_NAME = "local_file_search"
+
 router = APIRouter(tags=["chat"])
 
 @router.post("/chats")
 def handle_chat(payload: ChatIn, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
-    """Handles chat requests using Cohere V2 RAG with local file search."""
+    """Handles chat requests with Cohere V2 and local RAG documents."""
     logger.info(f"Chat request from username: {payload.username}")
 
     if user.username != payload.username:
-        logger.error(f"Unauthorized: Token username {user.username} does not match payload {payload.username}")
+        logger.error(f"Unauthorized: Token username {user.username} != payload {payload.username}")
         raise HTTPException(status_code=403, detail="Unauthorized user")
 
-    # --- Find or create chat ---
-    if payload.chat_id:
-        chat = session.get(Chat, payload.chat_id)
-        if not chat or chat.user_id != user.id:
-            raise HTTPException(status_code=404, detail="Chat not found")
-        agent = session.get(Agent, chat.agent_id)
-    else:
-        if not payload.agent_id:
-            raise HTTPException(status_code=400, detail="agent_id required for new chats")
-        agent = session.get(Agent, payload.agent_id)
-        if not agent:
-            raise HTTPException(status_code=404, detail="Agent not found")
-        chat = Chat(user_id=user.id, agent_id=agent.id)
-        session.add(chat)
-        session.commit()
-        session.refresh(chat)
-
-    # --- Save user message ---
-    user_msg = Message(chat_id=chat.id, role="user", content=payload.message)
-    session.add(user_msg)
-    session.commit()
-
-    # --- Fetch all messages for this chat ---
-    existing_messages = session.exec(select(Message).where(Message.chat_id == chat.id)).all()
-
-    # --- Build messages array for Cohere ---
-    cohere_messages = build_cohere_messages(agent, existing_messages, payload.message)
-
-    # --- Prepare tool call if needed ---
-    tools = [{"name": LOCAL_FILE_TOOL_NAME,
-              "description": "Searches local data.csv and data.json files for relevant info.",
-              "parameters": [{"name": "query", "type": "string", "description": "Search query"}]}] if needs_tool(payload.message) else None
-
-    documents = []
-    if tools:
-        documents = process_tool_call({"name": LOCAL_FILE_TOOL_NAME, "parameters": {"query": payload.message}})
-
-    # --- Call Cohere V2 Chat API ---
     try:
-        if co:
-            response = co.chat(
-                model="command-r-plus",
-                messages=cohere_messages,   # <-- Only use 'messages'
-                tools=tools,
-                documents=documents
-            )
+        # --- Find user ---
+        db_user = session.exec(select(User).where(User.username == payload.username)).first()
+        if not db_user:
+            # Optional: auto-create guest user
+            db_user = User(username=payload.username, password_hash=get_password_hash("temppw"))
+            session.add(db_user)
+            session.commit()
+            session.refresh(db_user)
 
-            # Process tool calls returned by Cohere
-            if getattr(response, "tool_calls", None):
-                documents = process_tool_call(response.tool_calls[0])
+        # --- Get or create chat ---
+        if payload.chat_id:
+            chat = session.get(Chat, payload.chat_id)
+            if not chat or chat.user_id != db_user.id:
+                raise HTTPException(status_code=404, detail="Chat not found")
+            agent = session.get(Agent, chat.agent_id)
+        else:
+            if not payload.agent_id:
+                raise HTTPException(status_code=400, detail="agent_id required for new chat")
+            agent = session.get(Agent, payload.agent_id)
+            if not agent:
+                raise HTTPException(status_code=404, detail="Agent not found")
+            chat = Chat(user_id=db_user.id, agent_id=agent.id)
+            session.add(chat)
+            session.commit()
+            session.refresh(chat)
+
+        # --- Save user message ---
+        user_msg = Message(chat_id=chat.id, role="user", content=payload.message)
+        session.add(user_msg)
+        session.commit()
+
+        # --- Fetch existing messages ---
+        existing_messages = session.exec(select(Message).where(Message.chat_id == chat.id)).all()
+
+        # --- Build messages for Cohere ---
+        messages = build_cohere_messages(agent, existing_messages, payload.message)
+
+        # --- Decide if local RAG is needed ---
+        tools = [{"name": LOCAL_FILE_TOOL_NAME,
+                  "description": "Searches local CSV and JSON files for relevant info.",
+                  "parameters": [{"name": "query", "type": "string", "description": "Search query"}]}] if needs_tool(payload.message) else None
+
+        documents = []
+        if tools:
+            documents = process_tool_call({"name": LOCAL_FILE_TOOL_NAME, "parameters": {"query": payload.message}})
+
+        # --- Call Cohere V2 ---
+        if co:
+            try:
                 response = co.chat(
                     model="command-r-plus",
-                    messages=cohere_messages,
+                    messages=messages,
                     tools=tools,
                     documents=documents
                 )
 
-            ai_text = response.message.content[0].text if response.message.content else "No response"
+                # Check if tool was called again
+                if response.tool_calls:
+                    documents = process_tool_call(response.tool_calls[0])
+                    response = co.chat(
+                        model="command-r-plus",
+                        messages=messages,
+                        tools=tools,
+                        documents=documents
+                    )
+
+                ai_text = response.message.content[0].text if response.message.content else "No response"
+
+            except Exception as e:
+                logger.error(f"Cohere API error: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Cohere API error: {str(e)}")
         else:
             ai_text = f"Echo (mock mode): {payload.message}"
+
+        # --- Save AI response ---
+        ai_msg = Message(chat_id=chat.id, role="agent", content=ai_text)
+        session.add(ai_msg)
+        session.commit()
+
+        logger.info(f"Chat response generated for chat_id={chat.id}")
+        return {"chat_id": chat.id, "response": ai_text}
+
     except Exception as e:
-        logger.error(f"Cohere API error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Cohere API error: {str(e)}")
-
-    # --- Save AI response ---
-    ai_msg = Message(chat_id=chat.id, role="agent", content=ai_text)
-    session.add(ai_msg)
-    session.commit()
-
-    logger.info(f"Chat response generated for chat_id: {chat.id}")
-    return {"chat_id": chat.id, "response": ai_text}
+        logger.error(f"Error in handle_chat: {str(e)}")
+        try:
+            session.rollback()
+        except Exception as rollback_e:
+            logger.error(f"Rollback failed: {str(rollback_e)}")
+        raise HTTPException(status_code=500, detail=f"Error processing request: {str(e)}")
