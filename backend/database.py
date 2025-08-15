@@ -12,20 +12,29 @@ engine = create_engine(DATABASE_URL)
 
 def init_db():
     """Initialize database and create guest user if not exists."""
-    SQLModel.metadata.create_all(engine)
-    with Session(engine) as session:
-        guest_user = session.exec(select(User).where(User.username == "guest")).first()
-        if not guest_user:
-            logger.info("Creating guest user")
-            guest_user = User(
-                username="guest",
-                password_hash=get_password_hash("guestpassword")
-            )
-            session.add(guest_user)
-            session.commit()
-        else:
-            logger.info("Guest user already exists")
+    try:
+        logger.info("Initializing database")
+        SQLModel.metadata.create_all(engine)
+        with Session(engine) as session:
+            guest_user = session.exec(select(User).where(User.username == "guest")).first()
+            if not guest_user:
+                logger.info("Creating guest user")
+                guest_user = User(
+                    username="guest",
+                    password_hash=get_password_hash("guestpassword")
+                )
+                session.add(guest_user)
+                session.commit()
+            else:
+                logger.info("Guest user already exists")
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {str(e)}")
+        raise
 
 def get_session():
-    with Session(engine) as session:
-        yield session
+    try:
+        with Session(engine) as session:
+            yield session
+    except Exception as e:
+        logger.error(f"Database session error: {str(e)}")
+        raise
