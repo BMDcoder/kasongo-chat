@@ -6,7 +6,7 @@ from database import get_session
 from models import User, Agent, Chat, Message
 from routes.ai_service import build_cohere_messages, co, needs_tool, process_tool_call
 from auth import get_password_hash, verify_password, create_access_token, get_current_user
-from cohere.error import CohereAPIError
+from cohere import CohereAPIError  # Updated import
 from datetime import timedelta
 
 LOCAL_FILE_TOOL_NAME = "local_file_search"
@@ -26,6 +26,18 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), ses
     access_token = create_access_token(data={"sub": user.username}, expires_delta=timedelta(minutes=30))
     return {"access_token": access_token, "token_type": "bearer"}
 
+@router.post("/auth/signup")
+def signup(form_data: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(get_session)):
+    """Create a new user."""
+    user = session.exec(select(User).where(User.username == form_data.username)).first()
+    if user:
+        raise HTTPException(status_code=400, detail="Username already exists")
+    user = User(username=form_data.username, password_hash=get_password_hash(form_data.password))
+    session.add(user)
+    session.commit()
+    access_token = create_access_token(data={"sub": user.username})
+    return {"access_token": access_token, "token_type": "bearer"}
+
 @router.post("/chats")
 def handle_chat(payload: ChatIn, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
     """Handles chat requests using Cohere V2 with RAG from local files."""
@@ -35,10 +47,7 @@ def handle_chat(payload: ChatIn, session: Session = Depends(get_session), user: 
     # Find or create user
     user = session.exec(select(User).where(User.username == payload.username)).first()
     if not user:
-        user = User(username=payload.username, password_hash=get_password_hash("temppw"))  # Replace with proper signup
-        session.add(user)
-        session.commit()
-        session.refresh(user)
+        raise HTTPException(status_code=404, detail="User not found")  # Require signup first
 
     # Get or create chat
     with session.begin():
