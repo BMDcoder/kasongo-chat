@@ -2,7 +2,7 @@ import os
 import logging
 from typing import List
 from models import Agent, Message
-from services.local_file_service import search_local_files
+from routes.local_file_service import search_local_files
 import cohere
 
 logging.basicConfig(level=logging.INFO)
