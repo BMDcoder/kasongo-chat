@@ -6,7 +6,6 @@ from database import get_session
 from models import User, Agent, Chat, Message
 from routes.ai_service import build_cohere_messages, co, needs_tool, process_tool_call
 from auth import get_password_hash, verify_password, create_access_token, get_current_user
-from cohere import CohereAPIError  # Updated import
 from datetime import timedelta
 
 LOCAL_FILE_TOOL_NAME = "local_file_search"
@@ -111,10 +110,8 @@ def handle_chat(payload: ChatIn, session: Session = Depends(get_session), user: 
             ai_text = response.message.content[0].text if response.message.content else "No response"
         else:
             ai_text = f"Echo (mock mode): {payload.message}"
-    except CohereAPIError as e:
-        raise HTTPException(status_code=500, detail=f"Cohere API error: {str(e)}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error processing request: {str(e)}")
 
     # Save AI response
     with session.begin():
