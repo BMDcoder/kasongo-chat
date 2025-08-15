@@ -1,7 +1,7 @@
 import re
 import logging
 from os import environ
-from cohere import ClientV2
+from cohere import ClientV2, CohereAPIError  # Updated import
 from routes.local_file_service import local_file_operation
 
 logging.basicConfig(level=logging.INFO)
@@ -15,7 +15,7 @@ if not COHERE_API_KEY:
 else:
     try:
         co = ClientV2(api_key=COHERE_API_KEY)
-    except Exception as e:
+    except CohereAPIError as e:
         logger.error(f"Failed to initialize Cohere client: {str(e)}")
         co = None
 
