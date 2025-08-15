@@ -1,54 +1,71 @@
-# chat_router.py
-from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import select, Session
 from schemas import ChatIn
 from database import get_session
-from models import User, Agent, Chat, Message, UserCredentials
+from models import User, Agent, Chat, Message
 from services.ai_service import build_cohere_messages, co, needs_tool, process_tool_call
-from services.google_drive_service import get_oauth_flow, store_credentials
 from auth import get_password_hash, get_current_user
 from cohere.error import CohereAPIError
 
-GOOGLE_DRIVE_TOOL_NAME = "google_drive_connector"
-router = APIRouter(tags=["chat", "auth"])
+LOCAL_FILE_TOOL_NAME = "local_file_search"
 
-@router.get("/auth/google")
-def initiate_google_auth(user: User = Depends(get_current_user)):
-    """Initiate Google OAuth flow."""
-    flow = get_oauth_flow()
-    flow.redirect_uri = os.environ.get("GOOGLE_REDIRECT_URI")
-    authorization_url, state = flow.authorization_url(
-        access_type="offline",
-        include_granted_scopes="true",
-        state=str(user.id)  # Pass user_id as state
-    )
-    return RedirectResponse(authorization_url)
-
-@router.get("/auth/google/callback")
-def google_auth_callback(request: Request, state: str, code: str, session: Session = Depends(get_session)):
-    """Handle Google OAuth callback."""
-    flow = get_oauth_flow()
-    flow.redirect_uri = os.environ.get("GOOGLE_REDIRECT_URI")
-    try:
-        flow.fetch_token(code=code)
-        creds = flow.credentials
-        user_id = int(state)  # Get user_id from state
-        store_credentials(user_id, creds, session)
-        return {"message": "Google Drive authentication successful"}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"OAuth callback failed: {str(e)}")
+router = APIRouter(tags=["chat"])
 
 @router.post("/chats")
 def handle_chat(payload: ChatIn, session: Session = Depends(get_session), user: User = Depends(get_current_user)):
-    # ... (same as previous chat_router.py, with minor updates)
+    """Handles chat requests using Cohere V2 with RAG from local files."""
+    if user.username != payload.username:
+        raise HTTPException(status_code=403, detail="Unauthorized user")
+
+    # Find or create user
+    user = session.exec(select(User).where(User.username == payload.username)).first()
+    if not user:
+        user = User(username=payload.username, password_hash=get_password_hash("temppw"))  # Replace with proper auth
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+
+    # Get or create chat
+    with session.begin():
+        if payload.chat_id:
+            chat = session.get(Chat, payload.chat_id)
+            if not chat or chat.user_id != user.id:
+                raise HTTPException(status_code=404, detail="Chat not found")
+            agent = session.get(Agent, chat.agent_id)
+        else:
+            if not payload.agent_id:
+                raise HTTPException(status_code=400, detail="agent_id required for new chats")
+            agent = session.get(Agent, payload.agent_id)
+            if not agent:
+                raise HTTPException(status_code=404, detail="Agent not found")
+            chat = Chat(user_id=user.id, agent_id=agent.id)
+            session.add(chat)
+            session.commit()
+            session.refresh(chat)
+
+        # Save user message
+        user_msg = Message(chat_id=chat.id, role="user", content=payload.message)
+        session.add(user_msg)
+        session.commit()
+
+    # Fetch existing messages
+    existing_messages = session.exec(select(Message).where(Message.chat_id == chat.id)).all()
+
+    # Build Cohere messages
+    cohere_messages = build_cohere_messages(agent, existing_messages, payload.message)
+
+    # Decide whether to use local file search tool
+    tools = [{"name": LOCAL_FILE_TOOL_NAME, 
+              "description": "Searches local data.csv and data.json files for relevant information.",
+              "parameters": [
+                  {"name": "query", "type": "string", "description": "Search query for local files."}
+              ]}] if needs_tool(payload.message) else None
+
+    # Call Cohere V2 chat API with RAG
     try:
         documents = []
         if tools:
-            try:
-                documents = process_tool_call({"name": GOOGLE_DRIVE_TOOL_NAME, "parameters": {"query": payload.message}}, user.id, session)
-            except ValueError as e:
-                return {"chat_id": chat.id, "response": "Please authenticate with Google Drive at /auth/google"}
+            documents = process_tool_call({"name": LOCAL_FILE_TOOL_NAME, "parameters": {"query": payload.message}})
         
         if co:
             response = co.chat(
@@ -59,8 +76,7 @@ def handle_chat(payload: ChatIn, session: Session = Depends(get_session), user: 
             )
             
             if response.tool_calls:
-                documents = process_tool_call(response.tool_calls[0], user.id, session)
-                # Re-call Cohere with updated documents
+                documents = process_tool_call(response.tool_calls[0])
                 response = co.chat(
                     model="command-r-plus",
                     messages=cohere_messages,
