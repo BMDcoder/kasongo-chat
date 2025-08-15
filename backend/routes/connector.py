@@ -20,7 +20,7 @@ def build_cohere_messages(agent, existing_messages, latest_user_query):
     """
     system_prompt = agent.system_prompt or "You are a helpful assistant."
     system_prompt += (
-        "\nYou have access to a Google Drive tool for searching information "
+        "\nYou have access to a Google Drive tool named 'google_drive_connector' for searching information "
         "about professionals, service providers, and suppliers. Only use the tool "
         "when the user's query is about finding such entities. For all other queries, "
         "answer based on your knowledge without using the tool."
