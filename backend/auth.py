@@ -8,6 +8,7 @@ from os import environ
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 import logging
+from utils import get_password_hash, verify_password  # Import from utils.py
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -64,13 +65,3 @@ def get_guest_user(session: Session):
         logger.error("Guest user not found in database")
         raise HTTPException(status_code=404, detail="Guest user not found")
     return user
-
-def get_password_hash(password: str) -> str:
-    from passlib.context import CryptContext
-    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-    return pwd_context.hash(password)
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    from passlib.context import CryptContext
-    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-    return pwd_context.verify(plain_password, hashed_password)
