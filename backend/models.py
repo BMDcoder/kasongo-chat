@@ -26,8 +26,3 @@ class Message(SQLModel, table=True):
     role: str
     content: str
     timestamp: datetime = Field(default_factory=datetime.utcnow)
-
-class UserCredentials(SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="user.id")
-    credentials: bytes  # Pickled OAuth credentials
