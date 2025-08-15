@@ -1,4 +1,2 @@
-[
-  {"id": 101, "text": "Some other important info."},
-  {"id": 102, "text": "Additional reference material."}
-]
+{"id": "1", "title": "Supplier Contract", "text": "Details of supplier contract for ABC Corp", "url": "http://example.com/supplier1"}
+{"id": "2", "title": "Professional Bio", "text": "John Doe, expert consultant in AI", "url": "http://example.com/johndoe"}
