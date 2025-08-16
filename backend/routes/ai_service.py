@@ -47,7 +47,7 @@ def build_cohere_messages(agent: Agent, existing_messages: List[Message], new_me
 def needs_tool(message: str) -> bool:
     """Return True if local file search RAG should be used."""
     try:
-        return any(keyword in message.lower() for keyword in ["find", "search", "lookup", "recommend"])
+        return any(keyword in message.lower() for keyword in ["find", "search","recommend","supplier"])
     except Exception as e:
         logger.error(f"Error in needs_tool: {str(e)}")
         return False
