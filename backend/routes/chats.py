@@ -69,7 +69,7 @@ def handle_chat(payload: ChatIn, session: Session = Depends(get_session), user: 
         if co:
             try:
                 response = co.chat(
-                    model="command-a-vision-07-2025",
+                    model="command-r-plus-08-2024",
                     max_tokens=60,
                     temperature=0.5,
                     messages=cohere_messages,
