@@ -71,7 +71,7 @@ def handle_chat(payload: ChatIn, session: Session = Depends(get_session), user: 
                 response = co.chat(
                     model="command-a-03-2025",
                     max_tokens=200,
-                    temperature=0.4,
+                    temperature=0.8,
                     messages=cohere_messages,
                     documents=documents  # attach RAG docs here
                 )
